@@ -164,7 +164,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+      if (err.code === 'auth/unauthorized-domain') {
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'seu-dominio.vercel.app';
+        setAuthError(`Domínio não autorizado no Firebase (${currentDomain}). Adicione este domínio no Firebase Console > Authentication > Settings > Authorized Domains.`);
+      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
         try {
           await signInWithRedirect(auth, googleProvider);
           return;

@@ -327,10 +327,36 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenGemini })
 
           {/* Error display */}
           {authError && (
-            <div className="w-full bg-rose-500/15 border border-rose-400/30 rounded-2xl p-4 text-xs text-rose-200 flex items-center gap-2.5 text-left backdrop-blur-md">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-              <div className="flex-1">{authError}</div>
-              <button onClick={clearAuthError} className="text-xs text-rose-300 hover:text-white cursor-pointer font-bold">✕</button>
+            <div className="w-full bg-rose-500/15 border border-rose-400/30 rounded-2xl p-4 text-xs text-rose-200 space-y-2 text-left backdrop-blur-md">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                <div className="flex-1 font-medium">{authError}</div>
+                <button onClick={clearAuthError} className="text-xs text-rose-300 hover:text-white cursor-pointer font-bold">✕</button>
+              </div>
+              {authError.includes('Domínio não autorizado') && (
+                <div className="pt-2 border-t border-rose-500/20 flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[11px] text-slate-300">
+                    Copie o domínio abaixo e cole em <strong className="text-cyan-300">Firebase Console &gt; Authentication &gt; Settings &gt; Authorized Domains</strong>:
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="font-mono text-[11px] text-cyan-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+                      {typeof window !== 'undefined' ? window.location.hostname : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          navigator.clipboard.writeText(window.location.hostname);
+                          alert('Domínio copiado: ' + window.location.hostname);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-[11px] font-bold border border-cyan-400/40 cursor-pointer"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

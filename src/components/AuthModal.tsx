@@ -100,9 +100,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* Auth Error Banner */}
         {authError && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-xs text-red-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <span>{authError}</span>
+          <div className="bg-rose-500/15 border border-rose-500/30 rounded-2xl p-4 text-xs text-rose-200 space-y-2 text-left">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <span className="flex-1 font-medium">{authError}</span>
+            </div>
+            {authError.includes('Domínio não autorizado') && (
+              <div className="pt-2 border-t border-rose-500/20 flex flex-wrap items-center justify-between gap-2">
+                <span className="font-mono text-[11px] text-cyan-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+                  {typeof window !== 'undefined' ? window.location.hostname : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(window.location.hostname);
+                      alert('Domínio copiado: ' + window.location.hostname);
+                    }
+                  }}
+                  className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-[11px] font-bold border border-cyan-400/40 cursor-pointer"
+                >
+                  Copiar Domínio
+                </button>
+              </div>
+            )}
           </div>
         )}
 
