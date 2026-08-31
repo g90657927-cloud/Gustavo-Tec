@@ -1,0 +1,8 @@
+{
+  "name": "Gustavo Tec",
+  "description": "Portal autónomo em tempo real: Notícias Tech a cada 10s, Desporto Flashscore Ao Vivo, Notificações Push, Mensagens Online, ChatBot IA, Clima Portugal e Diagnóstico de Redes (DIGI, MEO, Vodafone, NOS).",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
