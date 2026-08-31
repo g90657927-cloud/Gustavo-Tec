@@ -179,7 +179,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 referrerPolicy="no-referrer"
               />
               <div>
-                <div className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200">Criador & Fundador</div>
+                <div className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200">Gustavo Peixoto</div>
                 <div className="text-[10px] text-slate-400">sougustavo000@gmail.com</div>
               </div>
             </button>

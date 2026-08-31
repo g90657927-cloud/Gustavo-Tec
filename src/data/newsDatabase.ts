@@ -47,7 +47,7 @@ Os novos benchmarks destacam que a preferência de desenvolvedores por respostas
     author: {
       name: 'Gustavo Peixoto',
       avatar: GUSTAVO_AVATAR,
-      role: 'Fundador & Editor-Chefe'
+      role: 'Editor-Chefe'
     },
     publishedAt: 'Há 1 minuto',
     timestamp: Date.now() - 60000,
@@ -79,7 +79,7 @@ Testes de bancada iniciais indicam ganhos térmicos notáveis, permitindo clocks
     author: {
       name: 'Gustavo Peixoto',
       avatar: GUSTAVO_AVATAR,
-      role: 'Fundador & Editor-Chefe'
+      role: 'Editor-Chefe'
     },
     publishedAt: 'Há 3 minutos',
     timestamp: Date.now() - 180000,
@@ -109,7 +109,7 @@ Em testes comparativos, o bundle gerado teve uma redução de 45% em tamanho e i
     author: {
       name: 'Gustavo Peixoto',
       avatar: GUSTAVO_AVATAR,
-      role: 'Fundador & Editor-Chefe'
+      role: 'Editor-Chefe'
     },
     publishedAt: 'Há 6 minutos',
     timestamp: Date.now() - 360000,
@@ -139,7 +139,7 @@ Grandes infraestruturas de nuvem já ativaram os algoritmos ML-KEM e ML-DSA em s
     author: {
       name: 'Gustavo Peixoto',
       avatar: GUSTAVO_AVATAR,
-      role: 'Fundador & Editor-Chefe'
+      role: 'Editor-Chefe'
     },
     publishedAt: 'Há 9 minutos',
     timestamp: Date.now() - 540000,
@@ -169,7 +169,7 @@ Diferente de braços robóticos programados com rotinas rígidas, esses robôs c
     author: {
       name: 'Gustavo Peixoto',
       avatar: GUSTAVO_AVATAR,
-      role: 'Fundador & Editor-Chefe'
+      role: 'Editor-Chefe'
     },
     publishedAt: 'Há 12 minutos',
     timestamp: Date.now() - 720000,
@@ -199,7 +199,7 @@ A novidade promete acelerar a eletrificação do transporte pesado e de veículo
     author: {
       name: 'Gustavo Peixoto',
       avatar: GUSTAVO_AVATAR,
-      role: 'Fundador & Editor-Chefe'
+      role: 'Editor-Chefe'
     },
     publishedAt: 'Há 15 minutos',
     timestamp: Date.now() - 900000,
@@ -228,7 +228,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'Nova versão de Kernel Linux otimiza agendador EEVDF para processadores híbridos',
     category: 'Dev & Open Source' as const,
     summary: 'Ganhos de até 18% em compilações paralelas e menor latência de interrupção em CPUs de alta densidade.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&auto=format&fit=crop&q=80',
     tags: ['Linux', 'Kernel', 'Open Source', 'Performance'],
     source: 'Gustavo Tec'
@@ -237,7 +237,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'Framework de Agentes Autônomos ganha integração com MCP (Model Context Protocol)',
     category: 'Inteligência Artificial' as const,
     summary: 'Padronização aberta permite conectar ferramentas, bancos de dados e APIs a qualquer LLM sem código intermediário.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
     tags: ['MCP', 'AI Agents', 'Context Protocol', 'LLM'],
     source: 'Gustavo Tec'
@@ -246,7 +246,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'Nova falha de canal lateral em caches L3 é mitigada via microcódigo de CPU',
     category: 'Cibersegurança' as const,
     summary: 'Pesquisadores de segurança acadêmica publicam prova de conceito sem impacto no throughput geral.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80',
     tags: ['Cibersegurança', 'Microcódigo', 'Hardware Security', 'Zero-Day'],
     source: 'Gustavo Tec'
@@ -255,7 +255,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'Display OLED Tandem de 480Hz para monitores gamers chega ao mercado com HDR 2000',
     category: 'Hardware & Chips' as const,
     summary: 'Dupla camada emissiva eleva o brilho sustentado para 2000 nits com tempo de resposta de 0.03ms.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop&q=80',
     tags: ['Hardware', 'OLED', 'Tandem', 'Monitores', 'Gaming'],
     source: 'Gustavo Tec'
@@ -264,7 +264,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'Telescópio Espacial descobre atmosfera rica em vapor d\'água em exoplaneta rochoso',
     category: 'Espaço & Robótica' as const,
     summary: 'Espectroscopia de transmissão de alta precisão confirma presença de nuvens condensadas a 40 anos-luz.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
     tags: ['Espaço', 'Exoplanetas', 'Astrofísica', 'Ciência'],
     source: 'Gustavo Tec'
@@ -273,7 +273,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'TypeScript 5.8 traz otimizações de checagem de tipos 40% mais velozes em monorepos',
     category: 'Dev & Open Source' as const,
     summary: 'Novo algoritmo de memoização reduz uso de memória durante build de projetos com múltiplos pacotes.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&fit=crop&q=80',
     tags: ['TypeScript', 'JavaScript', 'Dev Tools', 'Monorepo'],
     source: 'Gustavo Tec'
@@ -282,7 +282,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'Nova rede neural multimodal gera modelos 3D com malha poligonal perfeita em 1 segundo',
     category: 'Inteligência Artificial' as const,
     summary: 'Avanço com representações Gaussian Splatting e difusão geométrica permite exportação instantânea para motores de jogos.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
     tags: ['IA Generativa', '3D', 'Gaussian Splatting', 'Game Dev'],
     source: 'Gustavo Tec'
@@ -291,7 +291,7 @@ export const STREAM_NEWS_TEMPLATES = [
     title: 'Navegadores adotam suporte nativo a WebGPU 2.0 com Ray Tracing por hardware',
     category: 'Dev & Open Source' as const,
     summary: 'Acesso direto a núcleos RT de placas de vídeo modernas transforma o navegador em workstation gráfica.',
-    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Fundador & Editor-Chefe' },
+    author: { name: 'Gustavo Peixoto', avatar: GUSTAVO_AVATAR, role: 'Editor-Chefe' },
     imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
     tags: ['WebGPU', 'Ray Tracing', 'Browser', 'Graphics'],
     source: 'Gustavo Tec'

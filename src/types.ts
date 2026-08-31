@@ -9,7 +9,7 @@ export type TechCategory =
   | 'Cloud & Web3';
 
 export type UserRole = 
-  | 'Fundador & Admin'
+  | 'Administrador'
   | 'Dev Full-Stack'
   | 'Engenheiro de IA'
   | 'Entusiasta de Tecnologia'

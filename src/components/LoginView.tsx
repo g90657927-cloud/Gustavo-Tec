@@ -399,7 +399,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenGemini })
                 className="py-3 px-4 liquid-glass hover:liquid-glass-active text-cyan-300 hover:text-cyan-200 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-cyan-400/30 group"
               >
                 <Shield className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
-                <span>Entrar como Criador / Fundador</span>
+                <span>Entrar como Gustavo Peixoto</span>
               </button>
 
               <button
@@ -409,11 +409,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenGemini })
                 <User className="w-3.5 h-3.5 text-slate-400" />
                 <span>Sessão de Convidado</span>
               </button>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-center gap-2 text-slate-400 text-[11px] font-mono">
-              <Lock className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span>Conta de Fundador exclusiva para o criador (sougustavo000@gmail.com)</span>
             </div>
           </div>
 
