@@ -15,7 +15,7 @@ import {
   updateDoc,
   increment
 } from 'firebase/firestore';
-import { OnlineChatMessage } from '../types';
+import { OnlineChatMessage, UserRole } from '../types';
 import { 
   Send, 
   MessageSquare, 
@@ -124,10 +124,10 @@ export const OnlineChatView: React.FC<OnlineChatViewProps> = ({ onOpenAuth, onOp
     setErrorMsg(null);
 
     const messageContent = inputText.trim();
-    const isFounder = isFounderEmail(user.email);
-    const safeRole = isFounder ? 'Fundador & Admin' : (user.role === 'Fundador & Admin' ? 'Dev Full-Stack' : user.role);
-    const safeBadge = isFounder ? '👑 Fundador' : (user.badges?.[0]?.includes('Fundador') ? '⚡ Membro' : (user.badges?.[0] || '⚡ Membro'));
-    const currentOpTag = isFounder ? 'Criador / Admin' : 'Rede Verificada PT';
+    const isGustavo = isFounderEmail(user.email);
+    const safeRole: UserRole = isGustavo ? 'Administrador' : (user.role || 'Dev Full-Stack');
+    const safeBadge = isGustavo ? '👑 Administrador' : (user.badges?.[0] || '⚡ Membro');
+    const currentOpTag = isGustavo ? 'Administrador' : 'Rede Verificada PT';
 
     const newMsgData = {
       userId: user.id,
@@ -342,7 +342,7 @@ export const OnlineChatView: React.FC<OnlineChatViewProps> = ({ onOpenAuth, onOp
               <div className="space-y-1.5 max-w-md">
                 <h4 className="text-base font-bold text-slate-200">Ainda não há mensagens online</h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Todas as mensagens falsas e simuladas foram removidas. Este espaço agora transmite exclusivamente mensagens reais enviadas por utilizadores e pelo Fundador.
+                  Este espaço transmite mensagens reais em tempo real enviadas pela comunidade e pela equipa do Gustavo Tec.
                 </p>
               </div>
               {isAuthenticated ? (
@@ -392,10 +392,10 @@ export const OnlineChatView: React.FC<OnlineChatViewProps> = ({ onOpenAuth, onOp
                       <span className="font-bold text-slate-200">{msg.userName}</span>
                       {isFounderEmail(msg.userEmail) ? (
                         <span className="px-1.5 py-0.2 rounded text-[10px] bg-gradient-to-r from-amber-500/20 via-cyan-500/20 to-blue-500/20 text-amber-300 border border-amber-400/40 shadow-[0_0_8px_rgba(245,158,11,0.2)] font-bold">
-                          👑 Fundador Oficial
+                          👑 Administrador
                         </span>
                       ) : (
-                        msg.userBadge && !msg.userBadge.includes('Fundador') && (
+                        msg.userBadge && (
                           <span className="px-1.5 py-0.2 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
                             {msg.userBadge}
                           </span>

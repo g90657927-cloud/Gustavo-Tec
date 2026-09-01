@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { NewsItem, NewsComment, BreakingAlert, TechCategory } from '../types';
+import { NewsItem, NewsComment, BreakingAlert, TechCategory, UserRole } from '../types';
 import { 
   INITIAL_NEWS, 
   INITIAL_BREAKING_ALERTS, 
@@ -284,8 +284,8 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: user.name,
           username: user.username,
           avatar: user.avatar,
-          role: isFounder ? 'Fundador & Admin' : (user.role === 'Fundador & Admin' ? 'Dev Full-Stack' : user.role),
-          badge: isFounder ? '👑 Fundador' : (user.badges[0]?.includes('Fundador') ? '⚡ Membro' : user.badges[0] || 'Membro')
+          role: (isFounder ? 'Administrador' : (user.role || 'Dev Full-Stack')) as UserRole,
+          badge: isFounder ? '👑 Administrador' : (user.badges[0] || 'Membro')
         }
       : {
           id: 'guest',

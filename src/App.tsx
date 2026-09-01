@@ -26,6 +26,7 @@ import { RealTechAdModal } from './components/RealTechAdModal';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { NotificationToastBanner } from './components/NotificationToastBanner';
 import { MobileBottomNavigation } from './components/MobileBottomNavigation';
+import { RecaptchaVerificationModal } from './components/RecaptchaVerificationModal';
 import { DeviceViewMode } from './types';
 import { Smartphone, Tablet, Monitor, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -36,6 +37,20 @@ const MainLayout: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<DeviceViewMode>('desktop');
+  const [isRecaptchaOpen, setIsRecaptchaOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('gustavotec_recaptcha_verified');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.verified && Date.now() - data.timestamp < 86400000) {
+          return false;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return true;
+  });
   
   // Game-style Interstitial Ad State (Non-intrusive frequency capping, natural reward mechanics)
   const [isGameAdOpen, setIsGameAdOpen] = useState(false);
@@ -223,6 +238,12 @@ const MainLayout: React.FC = () => {
         </main>
 
         {/* 4. Modals */}
+        <RecaptchaVerificationModal
+          isOpen={isRecaptchaOpen}
+          onVerified={() => setIsRecaptchaOpen(false)}
+          requiredForAction="Acesso ao Portal Gustavo Tec"
+        />
+
         {selectedNews && (
           <NewsDetailModal
             news={selectedNews}

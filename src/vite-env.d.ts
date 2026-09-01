@@ -1,0 +1,16 @@
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_RECAPTCHA_SITE_KEY?: string;
+  readonly [key: string]: any;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+declare global {
+  interface Window {
+    grecaptcha?: any;
+  }
+}

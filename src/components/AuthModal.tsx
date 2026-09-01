@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
+import { RecaptchaWidget } from './RecaptchaWidget';
 import { 
   X, 
   User, 
@@ -44,6 +45,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>('Entusiasta de Tecnologia');
+  const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
 
   if (!isOpen) return null;
 
@@ -56,6 +58,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+    if (!isRecaptchaVerified) {
+      alert('Por favor, confirme a verificação de segurança (Não sou um robô) antes de continuar.');
+      return;
+    }
 
     login(email, name || undefined, role);
     onClose();
@@ -251,9 +257,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </select>
           </div>
 
+          {/* Anti-Bot Verification */}
+          <div className="pt-1">
+            <RecaptchaWidget onVerifyChange={setIsRecaptchaVerified} />
+          </div>
+
           <button
             type="submit"
-            className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-md shadow-cyan-500/20 cursor-pointer flex items-center justify-center gap-2 mt-2"
+            disabled={!isRecaptchaVerified}
+            className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-md shadow-cyan-500/20 cursor-pointer flex items-center justify-center gap-2 mt-2"
           >
             <LogIn className="w-4 h-4" />
             <span>Entrar com E-mail</span>

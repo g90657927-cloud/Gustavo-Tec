@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNews } from '../context/NewsContext';
+import { RecaptchaWidget } from './RecaptchaWidget';
 import {
   Sparkles,
   Shield,
@@ -362,6 +363,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenGemini })
 
           {/* Login Action Buttons */}
           <div className="space-y-3 max-w-md mx-auto">
+            {/* Anti-bot reCAPTCHA badge */}
+            <RecaptchaWidget onVerifyChange={() => {}} />
+
             {/* Google Sign In Button */}
             <button
               onClick={loginWithGoogle}
