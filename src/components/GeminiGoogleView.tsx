@@ -16,6 +16,7 @@ import {
   Bot
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { sendAiChatMessage } from '../lib/clientAiChat';
 
 interface ChatMessage {
   id: string;
@@ -157,26 +158,16 @@ export const GeminiGoogleView: React.FC = () => {
           content: m.content
         }));
 
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: query,
-          history,
-          role: roleToUse
-        })
+      const reply = await sendAiChatMessage({
+        message: query,
+        history,
+        role: roleToUse
       });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Falha na resposta do ChatBot');
-      }
 
       const modelMessage: ChatMessage = {
         id: `model-${Date.now()}`,
         role: 'model',
-        content: data.reply || 'Sem resposta retornada pelo ChatBot.',
+        content: reply || 'Sem resposta retornada pelo ChatBot.',
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       };
 

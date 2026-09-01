@@ -7,26 +7,31 @@ import {
   CloudSun, 
   Bell,
   User as UserIcon,
-  Trophy
+  Trophy,
+  Wrench
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
+import { useMaintenance } from '../context/MaintenanceContext';
 
 interface MobileBottomNavigationProps {
   currentTab: 'news' | 'football' | 'weather' | 'gemini' | 'tools' | 'community' | 'messages' | 'login';
   setCurrentTab: (tab: 'news' | 'football' | 'weather' | 'gemini' | 'tools' | 'community' | 'messages' | 'login') => void;
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
+  onOpenMaintenance?: () => void;
 }
 
 export const MobileBottomNavigation: React.FC<MobileBottomNavigationProps> = ({
   currentTab,
   setCurrentTab,
   onOpenNotifications,
-  onOpenProfile
+  onOpenProfile,
+  onOpenMaintenance
 }) => {
   const { unreadCount } = useNotifications();
   const { user, isAuthenticated } = useAuth();
+  const { isMaintenanceActive, isAdmin } = useMaintenance();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/90 border-t border-white/10 backdrop-blur-2xl px-2 py-1.5 shadow-[0_-10px_30px_rgba(0,0,0,0.7)] flex items-center justify-around sm:hidden">
@@ -124,6 +129,21 @@ export const MobileBottomNavigation: React.FC<MobileBottomNavigationProps> = ({
           </span>
         )}
       </button>
+
+      {/* 8. Maintenance / Admin Quick Access */}
+      {isAdmin && (
+        <button
+          onClick={onOpenMaintenance || onOpenProfile}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+            isMaintenanceActive
+              ? 'text-rose-400 bg-rose-500/20 animate-pulse font-bold'
+              : 'text-amber-400 hover:text-amber-300'
+          }`}
+        >
+          <Wrench className="w-4 h-4 mb-0.5" />
+          <span className="text-[9px] font-mono leading-none">Manut.</span>
+        </button>
+      )}
 
     </nav>
   );

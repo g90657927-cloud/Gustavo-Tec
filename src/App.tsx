@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 import { NewsProvider, useNews } from './context/NewsContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { MaintenanceProvider, useMaintenance } from './context/MaintenanceContext';
 import { Navbar } from './components/Navbar';
 import { BreakingTicker } from './components/BreakingTicker';
 import { NewsFeedView } from './components/NewsFeedView';
@@ -27,14 +28,18 @@ import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { NotificationToastBanner } from './components/NotificationToastBanner';
 import { MobileBottomNavigation } from './components/MobileBottomNavigation';
 import { RecaptchaVerificationModal } from './components/RecaptchaVerificationModal';
+import { MaintenanceScreen } from './components/MaintenanceScreen';
+import { MaintenanceModal } from './components/MaintenanceModal';
 import { DeviceViewMode } from './types';
 import { Smartphone, Tablet, Monitor, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const MainLayout: React.FC = () => {
+  const { isMaintenanceActive, isFounderBypassing } = useMaintenance();
   const [currentTab, setCurrentTab] = useState<'news' | 'football' | 'weather' | 'gemini' | 'tools' | 'community' | 'messages' | 'login'>('news');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<DeviceViewMode>('desktop');
   const [isRecaptchaOpen, setIsRecaptchaOpen] = useState<boolean>(() => {
@@ -104,6 +109,11 @@ const MainLayout: React.FC = () => {
     setIsGameAdOpen(true);
   };
 
+  // If maintenance mode is active and user is not bypassing as admin, show the dedicated maintenance screen
+  if (isMaintenanceActive && !isFounderBypassing) {
+    return <MaintenanceScreen />;
+  }
+
   return (
     <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-slate-950 relative overflow-x-hidden ${
       viewMode === 'mobile' ? 'p-0 sm:py-6 bg-slate-900' : viewMode === 'tablet' ? 'p-0 sm:py-6 bg-slate-900' : ''
@@ -171,8 +181,10 @@ const MainLayout: React.FC = () => {
           setCurrentTab={setCurrentTab}
           onOpenAuth={() => setIsAuthOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenMaintenance={() => setIsMaintenanceModalOpen(true)}
           onOpenSponsorAd={() => handleOpenManualAd()}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
+          onOpenRecaptcha={() => setIsRecaptchaOpen(true)}
           viewMode={viewMode}
           setViewMode={setViewMode}
         />
@@ -240,6 +252,7 @@ const MainLayout: React.FC = () => {
         {/* 4. Modals */}
         <RecaptchaVerificationModal
           isOpen={isRecaptchaOpen}
+          onClose={() => setIsRecaptchaOpen(false)}
           onVerified={() => setIsRecaptchaOpen(false)}
           requiredForAction="Acesso ao Portal Gustavo Tec"
         />
@@ -259,6 +272,12 @@ const MainLayout: React.FC = () => {
         <ProfileModal
           isOpen={isProfileOpen}
           onClose={() => setIsProfileOpen(false)}
+        />
+
+        {/* Founder Maintenance Management Modal */}
+        <MaintenanceModal
+          isOpen={isMaintenanceModalOpen}
+          onClose={() => setIsMaintenanceModalOpen(false)}
         />
 
         {/* Notification Center Modal */}
@@ -316,6 +335,7 @@ const MainLayout: React.FC = () => {
           setCurrentTab={setCurrentTab}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenMaintenance={() => setIsMaintenanceModalOpen(true)}
         />
 
       </div>
@@ -328,11 +348,13 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <NotificationProvider>
-          <NewsProvider>
-            <MainLayout />
-          </NewsProvider>
-        </NotificationProvider>
+        <MaintenanceProvider>
+          <NotificationProvider>
+            <NewsProvider>
+              <MainLayout />
+            </NewsProvider>
+          </NotificationProvider>
+        </MaintenanceProvider>
       </AuthProvider>
     </ThemeProvider>
   );

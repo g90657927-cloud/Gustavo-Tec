@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, RefreshCw, Check, AlertTriangle, Cpu } from 'lucide-react';
-import { getRecaptchaSiteKey, loadGoogleRecaptchaScript } from '../lib/recaptcha';
+import { getRecaptchaSiteKey, loadGoogleRecaptchaScript, verifyRecaptchaTokenOnServer } from '../lib/recaptcha';
 
 interface RecaptchaWidgetProps {
   onVerifyChange: (isVerified: boolean) => void;
@@ -55,35 +55,31 @@ export const RecaptchaWidget: React.FC<RecaptchaWidgetProps> = ({
 
         if (widgetIdRef.current === null && containerRef.current) {
           containerRef.current.innerHTML = '';
-          const id = grecaptcha.render(containerRef.current, {
-            sitekey: siteKey,
-            theme: 'dark',
-            size: 'normal',
-            callback: async (token: string) => {
-              try {
-                const res = await fetch('/api/verify-recaptcha', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token })
-                });
-                const data = await res.json();
-                if (data.verified || data.success) {
+          try {
+            const id = grecaptcha.render(containerRef.current, {
+              sitekey: siteKey,
+              theme: 'dark',
+              size: 'normal',
+              callback: async (token: string) => {
+                try {
+                  await verifyRecaptchaTokenOnServer(token);
                   setIsVerified(true);
                   onVerifyChange(true);
-                } else {
+                } catch {
                   setIsVerified(true);
                   onVerifyChange(true);
                 }
-              } catch {
-                setIsVerified(true);
-                onVerifyChange(true);
+              },
+              'error-callback': () => {
+                console.warn('Google reCAPTCHA notice: Domain verification or adblock fallback');
+                if (isMounted) setInteractiveMode(true);
               }
-            },
-            'error-callback': () => {
-              if (isMounted) setInteractiveMode(true);
-            }
-          });
-          widgetIdRef.current = id;
+            });
+            widgetIdRef.current = id;
+          } catch (renderErr) {
+            console.warn('grecaptcha.render error:', renderErr);
+            if (isMounted) setInteractiveMode(true);
+          }
         }
       } catch (e) {
         console.warn('Error in inline widget render:', e);
@@ -94,10 +90,10 @@ export const RecaptchaWidget: React.FC<RecaptchaWidgetProps> = ({
     initWidget();
 
     const fallbackTimeout = setTimeout(() => {
-      if (isMounted && !widgetIdRef.current && !isVerified) {
+      if (isMounted && widgetIdRef.current === null && !isVerified) {
         setInteractiveMode(true);
       }
-    }, 2000);
+    }, 6000);
 
     return () => {
       isMounted = false;

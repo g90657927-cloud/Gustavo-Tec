@@ -6,6 +6,7 @@ import {
   INITIAL_COMMENTS 
 } from '../data/newsDatabase';
 import { useAuth, isFounderEmail } from './AuthContext';
+import { fetchClientSideRealNews, COMMUNITY_FEEDS } from '../lib/clientNewsFetcher';
 
 export interface NewsSourceInfo {
   name: string;
@@ -125,57 +126,82 @@ export const NewsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const userRef = useRef(user);
   userRef.current = user;
 
-  // Fetch real multi-source news from server backend (/api/news/live)
+  // Fetch real multi-source news from server backend or client-side fallback (Vercel compatible)
   const fetchLiveRealNews = useCallback(async () => {
     setIsLoadingNews(true);
+    let fetchedNews: NewsItem[] = [];
+
     try {
       const res = await fetch('/api/news/live');
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      
+      if (res.ok && contentType.includes('application/json')) {
         const json = await res.json();
         if (json && json.success && Array.isArray(json.news) && json.news.length > 0) {
-          const fetchedNews: NewsItem[] = json.news;
-          setAllRealArticles(fetchedNews);
-          
-          // Initial display set (first 25 articles)
-          setNews(prev => {
-            // Keep any user-liked status or comments count from previous
-            const updated = fetchedNews.map(item => {
-              const prevItem = prev.find(p => p.id === item.id || p.title === item.title);
-              return prevItem ? { ...item, likes: prevItem.likes, commentsCount: prevItem.commentsCount } : item;
-            });
-            return updated.slice(0, 30);
-          });
-
-          // Generate real breaking ticker alerts
-          const newAlerts: BreakingAlert[] = fetchedNews.slice(0, 6).map((item, idx) => ({
-            id: generateUniqueId(`alert-real-${idx}`),
-            title: `[${item.source}] ${item.title}`,
-            category: item.category,
-            time: item.publishedAt || 'Recente',
-            isUrgent: item.breaking || idx === 0
-          }));
-          setBreakingAlerts(newAlerts);
-
-          // Extract distinct sources
-          const sourceMap = new Map<string, NewsSourceInfo>();
-          fetchedNews.forEach(item => {
-            if (item.source && !sourceMap.has(item.source)) {
-              sourceMap.set(item.source, {
-                name: item.source,
-                domain: item.sourceDomain || item.source.toLowerCase().replace(/\s+/g, '') + '.com',
-                avatar: item.author?.avatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + item.source
-              });
-            }
-          });
-          setAvailableSources(Array.from(sourceMap.values()));
+          fetchedNews = json.news;
         }
       }
-    } catch (err) {
-      console.warn('Aviso ao carregar notícias dos feeds externos:', err);
-    } finally {
-      setIsLoadingNews(false);
-      setLastUpdatedTime(new Date());
+    } catch {
+      // Server route unavailable or static host (e.g. Vercel)
     }
+
+    // If server fetch didn't return articles, use client-side multi-feed aggregator
+    if (fetchedNews.length === 0) {
+      try {
+        fetchedNews = await fetchClientSideRealNews();
+      } catch (err) {
+        console.warn('Fallback client fetch warning:', err);
+      }
+    }
+
+    if (fetchedNews.length > 0) {
+      setAllRealArticles(fetchedNews);
+      
+      // Initial display set (first 30 articles)
+      setNews(prev => {
+        const updated = fetchedNews.map(item => {
+          const prevItem = prev.find(p => p.id === item.id || p.title === item.title);
+          return prevItem ? { ...item, likes: prevItem.likes, commentsCount: prevItem.commentsCount } : item;
+        });
+        return updated.slice(0, 35);
+      });
+
+      // Generate real breaking ticker alerts
+      const newAlerts: BreakingAlert[] = fetchedNews.slice(0, 6).map((item, idx) => ({
+        id: generateUniqueId(`alert-real-${idx}`),
+        title: `[${item.source}] ${item.title}`,
+        category: item.category,
+        time: item.publishedAt || 'Recente',
+        isUrgent: item.breaking || idx === 0
+      }));
+      setBreakingAlerts(newAlerts);
+
+      // Extract distinct sources from articles and predefined community portals
+      const sourceMap = new Map<string, NewsSourceInfo>();
+      
+      COMMUNITY_FEEDS.forEach(f => {
+        sourceMap.set(f.name, {
+          name: f.name,
+          domain: f.domain,
+          avatar: f.avatar
+        });
+      });
+
+      fetchedNews.forEach(item => {
+        if (item.source && !sourceMap.has(item.source)) {
+          sourceMap.set(item.source, {
+            name: item.source,
+            domain: item.sourceDomain || item.source.toLowerCase().replace(/\s+/g, '') + '.com',
+            avatar: item.author?.avatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + item.source
+          });
+        }
+      });
+
+      setAvailableSources(Array.from(sourceMap.values()));
+    }
+
+    setIsLoadingNews(false);
+    setLastUpdatedTime(new Date());
   }, []);
 
   // Fetch on mount

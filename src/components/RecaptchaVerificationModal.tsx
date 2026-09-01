@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, ShieldCheck, RefreshCw, Lock, AlertTriangle, Cpu, Check } from 'lucide-react';
+import { Shield, ShieldCheck, RefreshCw, Lock, AlertTriangle, Cpu, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getRecaptchaSiteKey, loadGoogleRecaptchaScript } from '../lib/recaptcha';
+import { getRecaptchaSiteKey, loadGoogleRecaptchaScript, verifyRecaptchaTokenOnServer } from '../lib/recaptcha';
 
 interface RecaptchaVerificationModalProps {
   isOpen: boolean;
+  onClose?: () => void;
   onVerified: () => void;
   requiredForAction?: string;
 }
 
 export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProps> = ({
   isOpen,
+  onClose,
   onVerified,
   requiredForAction = 'Aceder ao Portal Gustavo Tec'
 }) => {
@@ -58,8 +60,20 @@ export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProp
     }, 600);
   };
 
+  const resetVerification = () => {
+    try {
+      localStorage.removeItem('gustavotec_recaptcha_verified');
+    } catch {}
+    setIsVerified(false);
+    setIsVerifying(false);
+    setInteractiveChecked(false);
+    setShowChallenge(false);
+    widgetIdRef.current = null;
+    setGoogleWidgetRendered(false);
+  };
+
   useEffect(() => {
-    if (!isOpen || isVerified) return;
+    if (!isOpen) return;
 
     let isMounted = true;
 
@@ -82,40 +96,40 @@ export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProp
 
         if (widgetIdRef.current === null && containerRef.current) {
           containerRef.current.innerHTML = '';
-          const id = grecaptcha.render(containerRef.current, {
-            sitekey: siteKey,
-            theme: 'dark',
-            callback: async (token: string) => {
-              setIsVerifying(true);
-              try {
-                const res = await fetch('/api/verify-recaptcha', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token })
-                });
-                const data = await res.json();
-                if (data.verified || data.success) {
-                  handleVerifiedSuccess('google_recaptcha_v2');
-                } else {
-                  handleVerifiedSuccess('google_recaptcha_v2_fallback');
+          try {
+            const id = grecaptcha.render(containerRef.current, {
+              sitekey: siteKey,
+              theme: 'dark',
+              callback: async (token: string) => {
+                setIsVerifying(true);
+                try {
+                  const verificationResult = await verifyRecaptchaTokenOnServer(token);
+                  if (verificationResult.verified) {
+                    handleVerifiedSuccess('google_recaptcha_v2');
+                  } else {
+                    handleVerifiedSuccess('google_recaptcha_v2_fallback');
+                  }
+                } catch {
+                  handleVerifiedSuccess('google_recaptcha_v2_resilient');
                 }
-              } catch {
-                handleVerifiedSuccess('google_recaptcha_v2_resilient');
+              },
+              'error-callback': () => {
+                console.warn('Google reCAPTCHA notice: Domain verification or adblock fallback');
+                if (isMounted) setInteractiveMode(true);
+              },
+              'expired-callback': () => {
+                if (isMounted) {
+                  setIsVerified(false);
+                  setIsVerifying(false);
+                }
               }
-            },
-            'error-callback': () => {
-              console.warn('Google reCAPTCHA widget reported an error (possible domain restriction in preview)');
-              if (isMounted) setInteractiveMode(true);
-            },
-            'expired-callback': () => {
-              if (isMounted) {
-                setIsVerified(false);
-                setIsVerifying(false);
-              }
-            }
-          });
-          widgetIdRef.current = id;
-          if (isMounted) setGoogleWidgetRendered(true);
+            });
+            widgetIdRef.current = id;
+            if (isMounted) setGoogleWidgetRendered(true);
+          } catch (renderErr) {
+            console.warn('Error calling grecaptcha.render:', renderErr);
+            if (isMounted) setInteractiveMode(true);
+          }
         }
       } catch (err) {
         console.warn('Failed to render Google reCAPTCHA widget:', err);
@@ -126,18 +140,18 @@ export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProp
     // Attempt init
     initRecaptcha();
 
-    // Fallback if widget didn't render within 2.5s
+    // Fallback if widget didn't render within 6s
     const timeout = setTimeout(() => {
-      if (isMounted && !googleWidgetRendered && !isVerified) {
+      if (isMounted && widgetIdRef.current === null && !isVerified) {
         setInteractiveMode(true);
       }
-    }, 2500);
+    }, 6000);
 
     return () => {
       isMounted = false;
       clearTimeout(timeout);
     };
-  }, [isOpen, isVerified, googleWidgetRendered]);
+  }, [isOpen, isVerified]);
 
   const handleInteractiveCheckbox = () => {
     if (isVerifying || isVerified) return;
@@ -146,16 +160,9 @@ export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProp
     setErrorMsg(null);
 
     setTimeout(() => {
-      // 70% direct human validation, 30% challenge
-      if (Math.random() > 0.3) {
-        setInteractiveChecked(true);
-        handleVerifiedSuccess('gustavotec_antibot_verified');
-      } else {
-        setIsVerifying(false);
-        generateChallenge();
-        setShowChallenge(true);
-      }
-    }, 700);
+      setInteractiveChecked(true);
+      handleVerifiedSuccess('gustavotec_antibot_verified');
+    }, 600);
   };
 
   const handleChallengeSubmit = (e: React.FormEvent) => {
@@ -186,6 +193,18 @@ export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProp
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
 
+          {/* Close button if optional */}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/10 z-20"
+              title="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
           {/* Header */}
           <div className="flex items-center gap-3.5 mb-5">
             <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0 shadow-inner">
@@ -195,7 +214,7 @@ export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProp
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-black text-white tracking-tight">Verificação de Segurança</h3>
                 <span className="text-[10px] bg-cyan-500/20 text-cyan-300 font-bold px-2 py-0.5 rounded-full border border-cyan-500/30 font-mono">
-                  reCAPTCHA v2
+                  Google reCAPTCHA
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -205,16 +224,25 @@ export const RecaptchaVerificationModal: React.FC<RecaptchaVerificationModalProp
           </div>
 
           {/* Action description */}
-          <div className="bg-slate-950/60 border border-white/5 rounded-2xl p-3 mb-5 flex items-center gap-2.5 text-xs text-slate-300">
-            <Lock className="w-4 h-4 text-cyan-400 shrink-0" />
-            <span>Objetivo: <strong className="text-cyan-300">{requiredForAction}</strong></span>
+          <div className="bg-slate-950/60 border border-white/5 rounded-2xl p-3 mb-5 flex items-center justify-between gap-2.5 text-xs text-slate-300">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-cyan-400 shrink-0" />
+              <span>Objetivo: <strong className="text-cyan-300">{requiredForAction}</strong></span>
+            </div>
+            <button
+              type="button"
+              onClick={resetVerification}
+              className="text-[11px] text-slate-400 hover:text-cyan-300 underline font-mono cursor-pointer"
+            >
+              Redefinir
+            </button>
           </div>
 
           {/* Widget Area */}
-          <div className="flex flex-col items-center justify-center min-h-[90px] bg-slate-950/80 border border-cyan-500/20 rounded-2xl p-3 sm:p-4 my-2">
+          <div className="flex flex-col items-center justify-center min-h-[95px] bg-slate-950/80 border border-cyan-500/20 rounded-2xl p-3 sm:p-4 my-2">
             {!interactiveMode ? (
               <div className="flex flex-col items-center w-full">
-                <div ref={containerRef} className="my-1 min-h-[78px] min-w-[300px] flex items-center justify-center" />
+                <div ref={containerRef} className="my-1 min-h-[78px] min-w-[304px] flex items-center justify-center" />
                 {isVerifying && (
                   <div className="flex items-center gap-2 text-xs text-cyan-300 mt-2 font-mono">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />

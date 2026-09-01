@@ -1,6 +1,7 @@
 import React from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, isFounderEmail } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useMaintenance } from '../context/MaintenanceContext';
 import { 
   Flame, 
   MessageSquare, 
@@ -11,7 +12,9 @@ import {
   CloudSun,
   Sliders,
   Bell,
-  Trophy
+  Trophy,
+  ShieldCheck,
+  Wrench
 } from 'lucide-react';
 import { DeviceViewMode } from '../types';
 import { DeviceModeSwitcher } from './DeviceModeSwitcher';
@@ -22,8 +25,10 @@ interface NavbarProps {
   setCurrentTab: (tab: 'news' | 'football' | 'weather' | 'gemini' | 'tools' | 'community' | 'messages' | 'login') => void;
   onOpenAuth: () => void;
   onOpenProfile: () => void;
+  onOpenMaintenance?: () => void;
   onOpenSponsorAd?: () => void;
   onOpenNotifications?: () => void;
+  onOpenRecaptcha?: () => void;
   viewMode: DeviceViewMode;
   setViewMode: (mode: DeviceViewMode) => void;
 }
@@ -33,13 +38,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   setCurrentTab,
   onOpenAuth,
   onOpenProfile,
+  onOpenMaintenance,
   onOpenSponsorAd,
   onOpenNotifications,
+  onOpenRecaptcha,
   viewMode,
   setViewMode
 }) => {
   const { user, isAuthenticated, toggleSound } = useAuth();
   const { unreadCount } = useNotifications();
+  const { isMaintenanceActive, isAdmin } = useMaintenance();
 
   const navTabs = [
     {
@@ -150,6 +158,36 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex">
               <DeviceModeSwitcher viewMode={viewMode} setViewMode={setViewMode} />
             </div>
+
+            {/* Maintenance Control / Admin Button (Visible ONLY to Admin sougustavo000@gmail.com) */}
+            {isAdmin && (
+              <button
+                onClick={onOpenMaintenance || onOpenProfile}
+                title={isMaintenanceActive ? 'Modo de Manutenção ATIVO (Clique para gerir)' : 'Painel de Manutenção & Auditoria do Administrador'}
+                className={`px-2.5 py-1.5 sm:py-2 rounded-xl backdrop-blur-md border text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isMaintenanceActive
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30 animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.3)]'
+                    : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40 hover:border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                }`}
+              >
+                <Wrench className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline font-bold">
+                  {isMaintenanceActive ? 'Manutenção Ativa' : 'Manutenção (Admin)'}
+                </span>
+              </button>
+            )}
+
+            {/* reCAPTCHA Security Center Test Button */}
+            {onOpenRecaptcha && (
+              <button
+                onClick={onOpenRecaptcha}
+                title="Verificação Google reCAPTCHA / Proteção Anti-Bot"
+                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-900/70 hover:bg-slate-800 backdrop-blur-md border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 hover:border-cyan-400 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono shadow-[0_0_12px_rgba(6,182,212,0.15)]"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden md:inline font-bold">reCAPTCHA</span>
+              </button>
+            )}
 
             {/* Notifications Button */}
             {onOpenNotifications && (

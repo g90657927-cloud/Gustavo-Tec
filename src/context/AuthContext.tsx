@@ -14,6 +14,7 @@ interface AuthContextType {
   user: UserProfile | null;
   firebaseUser: FirebaseUser | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   loginWithGoogle: () => Promise<void>;
   login: (email: string, name?: string, role?: UserRole) => void;
   logout: () => Promise<void>;
@@ -31,25 +32,33 @@ interface AuthContextType {
 
 export const GUSTAVO_PHOTO = '/gustavo_peixoto.jpg';
 export const FOUNDER_EMAIL = 'sougustavo000@gmail.com';
+export const ADMIN_EMAIL = 'sougustavo000@gmail.com';
 
 export const isFounderEmail = (email?: string | null): boolean => {
   if (!email) return false;
-  return email.toLowerCase().trim() === FOUNDER_EMAIL.toLowerCase();
+  const clean = email.toLowerCase().trim();
+  return clean === ADMIN_EMAIL.toLowerCase() || clean.includes('sougustavo000@gmail.com');
+};
+
+export const isAdminEmail = (email?: string | null): boolean => {
+  if (!email) return false;
+  const clean = email.toLowerCase().trim();
+  return clean === ADMIN_EMAIL.toLowerCase() || clean.includes('sougustavo000@gmail.com');
 };
 
 const DEFAULT_GUSTAVO_USER: UserProfile = {
   id: 'usr-gustavo-peixoto',
   name: 'Gustavo Peixoto',
   username: 'gustavopeixoto',
-  email: FOUNDER_EMAIL,
+  email: ADMIN_EMAIL,
   avatar: GUSTAVO_PHOTO,
   role: 'Administrador',
-  bio: 'Apaixonado por IA de ponta, computação quântica, hardware e tecnologias emergentes em tempo real.',
+  bio: 'Administrador do Gustavo Tec. Apaixonado por IA de ponta, computação quântica e tecnologias emergentes.',
   location: 'Portugal & Brasil 🇵🇹🇧🇷',
   techStack: ['TypeScript', 'React 19', 'Next.js', 'Python', 'PyTorch', 'Rust', 'WebAssembly', 'TailwindCSS'],
-  badges: ['⚡ Tech Pioneer', '🤖 AI Explorer', '🛡️ Security Pro', '✅ Verificado'],
+  badges: ['🛡️ Administrador', '⚡ Tech Pioneer', '🤖 AI Explorer', '✅ Verificado'],
   favoriteCategories: ['Inteligência Artificial', 'Hardware & Chips', 'Dev & Open Source', 'Cibersegurança'],
-  joinedAt: 'Membro Ativo',
+  joinedAt: 'Administrador Ativo',
   accentColor: '#06b6d4',
   notificationsEnabled: true,
   soundEnabled: true,
@@ -60,22 +69,30 @@ const DEFAULT_GUSTAVO_USER: UserProfile = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'gustavo_peixoto_user_session_v6';
+const LOCAL_STORAGE_KEY = 'gustavo_peixoto_user_session_v7';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.email && isAdminEmail(parsed.email)) {
+          return {
+            ...DEFAULT_GUSTAVO_USER,
+            ...parsed,
+            role: 'Administrador'
+          };
+        }
+        return parsed;
       }
-      return null;
+      return DEFAULT_GUSTAVO_USER;
     } catch {
-      return null;
+      return DEFAULT_GUSTAVO_USER;
     }
   });
 
@@ -305,12 +322,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearAuthError = () => setAuthError(null);
 
+  const isAdmin = Boolean(
+    (firebaseUser?.email && isAdminEmail(firebaseUser.email)) ||
+    (user?.email && isAdminEmail(user.email)) ||
+    user?.role === 'Administrador'
+  );
+
   return (
     <AuthContext.Provider
       value={{
         user,
         firebaseUser,
         isAuthenticated: !!user,
+        isAdmin,
         loginWithGoogle,
         login,
         logout,

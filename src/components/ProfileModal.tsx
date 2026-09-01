@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, isFounderEmail } from '../context/AuthContext';
 import { useNews } from '../context/NewsContext';
+import { useMaintenance } from '../context/MaintenanceContext';
+import { useUserManagement } from '../context/UserManagementContext';
 import { 
   X, 
   User, 
@@ -15,25 +17,67 @@ import {
   ShieldCheck, 
   ExternalLink,
   Lock,
+  Unlock,
   Flame,
   CheckCircle2,
-  Cpu
+  Cpu,
+  Wrench,
+  AlertTriangle,
+  Eye,
+  Clock,
+  Terminal,
+  Download,
+  Trash2,
+  UserCheck,
+  FileText,
+  Activity,
+  Users,
+  Search,
+  SlidersHorizontal,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenUserManager?: () => void;
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
-  const { user, logout, toggleBookmark, toggleSound, toggleNotifications } = useAuth();
+export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onOpenUserManager }) => {
+  const { user, firebaseUser, logout, toggleBookmark, toggleSound, toggleNotifications } = useAuth();
   const { news, setSelectedNews } = useNews();
+  const {
+    isMaintenanceActive,
+    maintenanceReason,
+    activateMaintenance,
+    deactivateMaintenance,
+    toggleFounderBypass,
+    isFounderBypassing,
+    isAdmin,
+    maintenanceLogs,
+    clearMaintenanceLogs
+  } = useMaintenance();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'bookmarks' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'bookmarks' | 'security' | 'maintenance' | 'users'>('profile');
+  const [customReason, setCustomReason] = useState('Atualização de Infraestrutura e Otimização do Servidor');
+  const [maintenanceFeedback, setMaintenanceFeedback] = useState<string | null>(null);
 
   if (!isOpen || !user) return null;
 
   const bookmarkedArticles = news.filter(n => user.bookmarkedNewsIds.includes(n.id));
+
+  const handleToggleMaintenance = () => {
+    const cred = user.email || firebaseUser?.email || 'sougustavo000@gmail.com';
+    if (isMaintenanceActive) {
+      const res = deactivateMaintenance(cred);
+      setMaintenanceFeedback(res.message);
+    } else {
+      const res = activateMaintenance(cred, customReason, 30);
+      setMaintenanceFeedback(res.message);
+    }
+    setTimeout(() => setMaintenanceFeedback(null), 4000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-slate-950/85 backdrop-blur-md">
@@ -100,6 +144,37 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
           >
             Preferências & Sistema
           </button>
+
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`pb-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === 'users'
+                    ? 'border-cyan-400 text-cyan-300 font-bold'
+                    : 'border-transparent text-cyan-400/70 hover:text-cyan-300'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Gestão de Usuários (Admin)</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('maintenance')}
+                className={`pb-3 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === 'maintenance'
+                    ? 'border-amber-400 text-amber-300'
+                    : 'border-transparent text-amber-400/70 hover:text-amber-300'
+                }`}
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                <span>Manutenção & Logs (Admin)</span>
+                {isMaintenanceActive && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                )}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Scrollable Content */}
@@ -304,6 +379,88 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 </div>
               </div>
 
+              {/* Admin Exclusive: Maintenance Mode System (No Firebase) */}
+              {isAdmin && (
+                <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/10 via-slate-900 to-amber-950/20 border border-amber-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+                      <Wrench className="w-4 h-4 text-amber-400" />
+                      <span>Modo de Manutenção Geral (Exclusivo Administrador)</span>
+                    </div>
+                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                      isMaintenanceActive 
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse' 
+                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    }`}>
+                      {isMaintenanceActive ? '🔴 EM MANUTENÇÃO' : '🟢 SITE ONLINE'}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Quando ativado, o site exibe a tela de manutenção e bloqueia o acesso aos visitantes (sem exibir o reCAPTCHA até ser reaberto).
+                  </p>
+
+                  {!isMaintenanceActive && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-mono text-slate-400 uppercase">Motivo / Mensagem aos Visitantes:</label>
+                      <input
+                        type="text"
+                        value={customReason}
+                        onChange={(e) => setCustomReason(e.target.value)}
+                        placeholder="Ex: Atualização dos Servidores e Banco de Dados"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleToggleMaintenance}
+                      className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg ${
+                        isMaintenanceActive
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950'
+                      }`}
+                    >
+                      {isMaintenanceActive ? (
+                        <>
+                          <Unlock className="w-4 h-4" />
+                          <span>Desativar Manutenção (Restaurar Site)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4" />
+                          <span>Ativar Modo de Manutenção Agora</span>
+                        </>
+                      )}
+                    </button>
+
+                    {isMaintenanceActive && (
+                      <button
+                        type="button"
+                        onClick={toggleFounderBypass}
+                        title="Alternar pré-visualização do site como fundador"
+                        className={`p-2.5 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          isFounderBypassing
+                            ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50'
+                            : 'bg-slate-800 text-slate-400 border-white/10'
+                        }`}
+                      >
+                        <Eye className="w-4 h-4 text-cyan-400" />
+                        <span>{isFounderBypassing ? 'Bypass Ativo' : 'Ver Site'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {maintenanceFeedback && (
+                    <div className="text-[11px] text-cyan-300 bg-cyan-950/40 p-2 rounded-xl border border-cyan-500/30 font-mono">
+                      {maintenanceFeedback}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Logout Action */}
               <div className="pt-4 border-t border-white/10">
                 <button
@@ -318,6 +475,234 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 </button>
               </div>
 
+            </div>
+          )}
+
+          {/* TAB 5: User Management (Exclusive to Admin) */}
+          {activeTab === 'users' && isAdmin && (
+            <div className="space-y-5">
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-cyan-500/15 via-slate-900 to-blue-950/30 border border-cyan-500/40 space-y-4 shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Central de Gestão de Usuários</h4>
+                      <p className="text-xs text-slate-400 font-mono">Pesquisa de membros e atribuição de cargos</p>
+                    </div>
+                  </div>
+
+                  {onOpenUserManager && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenUserManager();
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs font-mono flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-cyan-500/20"
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                      <span>Abrir Central Completa</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/5 space-y-2.5 text-xs">
+                  <div className="text-slate-200 font-bold flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                    <span>Níveis de Hierarquia & Permissões:</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
+                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                      <strong>🛡️ Administrador:</strong> Controle total, manutenção e moderação.
+                    </div>
+                    <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300">
+                      <strong>🎖️ Moderador:</strong> Moderação de chat online e comentários.
+                    </div>
+                    <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-300">
+                      <strong>✍️ Editor Oficial:</strong> Publicação e revisão técnica.
+                    </div>
+                    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+                      <strong>💎 Membro VIP:</strong> Selo de destaque e prioridade visual.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: Maintenance Management (Exclusive to Admin) */}
+          {activeTab === 'maintenance' && (
+            <div className="space-y-5">
+              {/* Maintenance Control Card */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500/15 via-slate-900 to-amber-950/30 border border-amber-500/40 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                      <Wrench className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Painel do Administrador</h4>
+                      <p className="text-xs text-slate-400 font-mono">Controlo Geral da Plataforma • {user.email}</p>
+                    </div>
+                  </div>
+
+                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${
+                    isMaintenanceActive 
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse' 
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  }`}>
+                    {isMaintenanceActive ? '🔴 EM MANUTENÇÃO' : '🟢 SITE ONLINE'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Quando ativo, os visitantes verão a tela informativa de manutenção e o reCAPTCHA fica desativado até que o site seja restaurado por si.
+                </p>
+
+                {!isMaintenanceActive && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-mono text-slate-300 uppercase">Motivo / Mensagem aos Visitantes:</label>
+                    <input
+                      type="text"
+                      value={customReason}
+                      onChange={(e) => setCustomReason(e.target.value)}
+                      placeholder="Ex: Atualização dos Servidores e Banco de Dados"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-amber-400 shadow-inner"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleToggleMaintenance}
+                    className={`w-full sm:flex-1 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg ${
+                      isMaintenanceActive
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950'
+                        : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950'
+                    }`}
+                  >
+                    {isMaintenanceActive ? (
+                      <>
+                        <Unlock className="w-4 h-4" />
+                        <span>Desativar Manutenção (Restaurar Site)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Ativar Modo de Manutenção Agora</span>
+                      </>
+                    )}
+                  </button>
+
+                  {isMaintenanceActive && (
+                    <button
+                      type="button"
+                      onClick={toggleFounderBypass}
+                      title="Alternar pré-visualização do site como administrador"
+                      className={`w-full sm:w-auto p-3 rounded-xl border text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        isFounderBypassing
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50'
+                          : 'bg-slate-800 text-slate-400 border-white/10'
+                      }`}
+                    >
+                      <Eye className="w-4 h-4 text-cyan-400" />
+                      <span>{isFounderBypassing ? 'Bypass Ativo' : 'Ver Site'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {maintenanceFeedback && (
+                  <div className="text-xs text-cyan-300 bg-cyan-950/50 p-3 rounded-xl border border-cyan-500/40 font-mono">
+                    {maintenanceFeedback}
+                  </div>
+                )}
+              </div>
+
+              {/* Maintenance Logs & Audit Section */}
+              <div className="p-6 rounded-3xl bg-slate-900/90 border border-white/10 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                      <Terminal className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>Logs de Manutenção & Auditoria</span>
+                        <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          {maintenanceLogs.length} eventos
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-400 font-mono">Registro cronológico de ativações e mudanças de status</p>
+                    </div>
+                  </div>
+
+                  {maintenanceLogs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearMaintenanceLogs}
+                      className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-[11px] font-mono flex items-center gap-1 transition-colors cursor-pointer border border-rose-500/30"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Limpar Logs</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Logs Stream */}
+                <div className="max-h-60 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+                  {maintenanceLogs.length === 0 ? (
+                    <div className="p-6 text-center bg-slate-950/50 rounded-2xl border border-white/5 text-slate-500 text-xs font-mono">
+                      Nenhum registro de manutenção no histórico.
+                    </div>
+                  ) : (
+                    maintenanceLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/10 space-y-1.5 text-xs font-sans hover:border-cyan-500/30 transition-all"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold ${
+                              log.action === 'activate' 
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                : log.action === 'deactivate'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                            }`}>
+                              {log.action === 'activate' ? 'ATIVADO' : log.action === 'deactivate' ? 'DESATIVADO' : 'EVENTO'}
+                            </span>
+                            <span className="font-semibold text-white text-[12px]">{log.actionLabel}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            {new Date(log.timestamp).toLocaleString('pt-PT', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+
+                        <p className="text-slate-300 text-[11px] leading-relaxed">
+                          {log.details}
+                        </p>
+
+                        <div className="pt-1 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                          <span className="flex items-center gap-1 text-cyan-300">
+                            <UserCheck className="w-3 h-3" />
+                            {log.executedBy}
+                          </span>
+                          <span className="text-slate-500">{log.executorEmail}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

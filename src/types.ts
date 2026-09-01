@@ -10,12 +10,28 @@ export type TechCategory =
 
 export type UserRole = 
   | 'Administrador'
+  | 'Moderador'
+  | 'Editor de Notícias'
+  | 'Membro VIP'
   | 'Dev Full-Stack'
   | 'Engenheiro de IA'
   | 'Entusiasta de Tecnologia'
   | 'Analista de Segurança'
   | 'Especialista em Hardware'
   | 'Designer de Produto';
+
+export interface RoleChangeLog {
+  id: string;
+  targetUserId: string;
+  targetUserName: string;
+  targetUserEmail: string;
+  previousRole: UserRole;
+  newRole: UserRole;
+  changedByEmail: string;
+  changedByName: string;
+  timestamp: number;
+  reason?: string;
+}
 
 export interface UserProfile {
   id: string;
