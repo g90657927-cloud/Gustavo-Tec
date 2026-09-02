@@ -38,6 +38,9 @@ function getEmailTransporter() {
       tls: {
         rejectUnauthorized: false,
       },
+      connectionTimeout: 5000,
+      greetingTimeout: 4000,
+      socketTimeout: 7000,
     });
   }
 
@@ -52,6 +55,9 @@ function getEmailTransporter() {
     tls: {
       rejectUnauthorized: false,
     },
+    connectionTimeout: 5000,
+    greetingTimeout: 4000,
+    socketTimeout: 7000,
   });
 }
 

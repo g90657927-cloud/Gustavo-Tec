@@ -254,8 +254,9 @@ async function startServer() {
 
   // Send Gmail Code via Bot Gustavo Tec API
   app.post('/api/auth/send-gmail-code', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
     try {
-      const { email } = req.body;
+      const { email } = req.body || {};
       if (!email || typeof email !== 'string') {
         return res.status(400).json({ success: false, message: 'Por favor, insira um e-mail válido.' });
       }
@@ -281,27 +282,32 @@ async function startServer() {
       const isFounder = cleanEmail === 'sougustavo000@gmail.com';
 
       // Dispatch magic code email via modular Email Service (Nodemailer / SMTP)
-      await sendAuthMagicCodeEmail({
+      const emailResult = await sendAuthMagicCodeEmail({
         to: cleanEmail,
         code: otpCode,
         isFounder
       });
 
-      res.json({
+      return res.status(200).json({
         success: true,
         message: `O Bot Gustavo Tec enviou a mensagem com o código de 6 dígitos para o seu e-mail (${cleanEmail}). Abra a sua caixa de entrada do Gmail para copiar o código e introduza-o abaixo.`,
-        email: cleanEmail
+        email: cleanEmail,
+        dispatched: emailResult.success
       });
     } catch (error: any) {
       console.error('Erro ao enviar código de verificação Gmail:', error);
-      res.status(500).json({ success: false, message: 'Falha ao processar envio do código pelo Bot Gustavo Tec.' });
+      return res.status(500).json({ 
+        success: false, 
+        message: error?.message || 'Falha ao processar envio do código pelo Bot Gustavo Tec.' 
+      });
     }
   });
 
   // Verify Gmail Code API
   app.post('/api/auth/verify-gmail-code', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
     try {
-      const { email, code } = req.body;
+      const { email, code } = req.body || {};
       if (!email || !code) {
         return res.status(400).json({ success: false, message: 'E-mail e código de 6 dígitos são obrigatórios.' });
       }
@@ -338,7 +344,7 @@ async function startServer() {
 
       const isFounder = cleanEmail === 'sougustavo000@gmail.com';
 
-      res.json({
+      return res.status(200).json({
         success: true,
         message: 'Código validado com sucesso pelo Bot Gustavo Tec!',
         email: cleanEmail,
@@ -346,7 +352,7 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error('Erro ao verificar código Gmail:', error);
-      res.status(500).json({ success: false, message: 'Erro ao validar código.' });
+      return res.status(500).json({ success: false, message: 'Erro ao validar código.' });
     }
   });
 

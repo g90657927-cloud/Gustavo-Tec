@@ -73,7 +73,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onOpenGemini })
           mode: 'executive'
         })
       });
-      const data = await response.json();
+      const raw = await response.text();
+      let data: any = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        data = {};
+      }
       if (data.output) {
         setDailyBrief(data.output);
       }
