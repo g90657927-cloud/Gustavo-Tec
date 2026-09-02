@@ -9,6 +9,7 @@ import { NewsProvider, useNews } from './context/NewsContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { MaintenanceProvider, useMaintenance } from './context/MaintenanceContext';
+import { UserManagementProvider } from './context/UserManagementContext';
 import { Navbar } from './components/Navbar';
 import { BreakingTicker } from './components/BreakingTicker';
 import { NewsFeedView } from './components/NewsFeedView';
@@ -27,9 +28,9 @@ import { RealTechAdModal } from './components/RealTechAdModal';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { NotificationToastBanner } from './components/NotificationToastBanner';
 import { MobileBottomNavigation } from './components/MobileBottomNavigation';
-import { RecaptchaVerificationModal } from './components/RecaptchaVerificationModal';
 import { MaintenanceScreen } from './components/MaintenanceScreen';
 import { MaintenanceModal } from './components/MaintenanceModal';
+import { UserManagerModal } from './components/UserManagerModal';
 import { DeviceViewMode } from './types';
 import { Smartphone, Tablet, Monitor, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,22 +41,9 @@ const MainLayout: React.FC = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [isUserManagerOpen, setIsUserManagerOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<DeviceViewMode>('desktop');
-  const [isRecaptchaOpen, setIsRecaptchaOpen] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('gustavotec_recaptcha_verified');
-      if (saved) {
-        const data = JSON.parse(saved);
-        if (data.verified && Date.now() - data.timestamp < 86400000) {
-          return false;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return true;
-  });
   
   // Game-style Interstitial Ad State (Non-intrusive frequency capping, natural reward mechanics)
   const [isGameAdOpen, setIsGameAdOpen] = useState(false);
@@ -182,9 +170,9 @@ const MainLayout: React.FC = () => {
           onOpenAuth={() => setIsAuthOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenMaintenance={() => setIsMaintenanceModalOpen(true)}
+          onOpenUserManager={() => setIsUserManagerOpen(true)}
           onOpenSponsorAd={() => handleOpenManualAd()}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
-          onOpenRecaptcha={() => setIsRecaptchaOpen(true)}
           viewMode={viewMode}
           setViewMode={setViewMode}
         />
@@ -223,22 +211,27 @@ const MainLayout: React.FC = () => {
                 />
               )}
 
+              {/* Weather IPMA Portugal Tab */}
               {currentTab === 'weather' && (
                 <WeatherIpmaView />
               )}
 
+              {/* Chatbot Gemini AI Tab */}
               {currentTab === 'gemini' && (
                 <GeminiGoogleView />
               )}
 
+              {/* Tech Tools / Telecom Operators Tab */}
               {currentTab === 'tools' && (
                 <TechToolsView />
               )}
 
+              {/* Live Community Feed Tab */}
               {currentTab === 'community' && (
                 <LiveCommunityFeed />
               )}
 
+              {/* Login / Profile Tab */}
               {currentTab === 'login' && (
                 <LoginView 
                   onSuccess={() => setCurrentTab('news')} 
@@ -250,13 +243,6 @@ const MainLayout: React.FC = () => {
         </main>
 
         {/* 4. Modals */}
-        <RecaptchaVerificationModal
-          isOpen={isRecaptchaOpen}
-          onClose={() => setIsRecaptchaOpen(false)}
-          onVerified={() => setIsRecaptchaOpen(false)}
-          requiredForAction="Acesso ao Portal Gustavo Tec"
-        />
-
         {selectedNews && (
           <NewsDetailModal
             news={selectedNews}
@@ -272,6 +258,13 @@ const MainLayout: React.FC = () => {
         <ProfileModal
           isOpen={isProfileOpen}
           onClose={() => setIsProfileOpen(false)}
+          onOpenUserManager={() => setIsUserManagerOpen(true)}
+        />
+
+        {/* Founder / Admin User Management Modal */}
+        <UserManagerModal
+          isOpen={isUserManagerOpen}
+          onClose={() => setIsUserManagerOpen(false)}
         />
 
         {/* Founder Maintenance Management Modal */}
@@ -336,6 +329,7 @@ const MainLayout: React.FC = () => {
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenMaintenance={() => setIsMaintenanceModalOpen(true)}
+          onOpenUserManager={() => setIsUserManagerOpen(true)}
         />
 
       </div>
@@ -349,11 +343,13 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <MaintenanceProvider>
-          <NotificationProvider>
-            <NewsProvider>
-              <MainLayout />
-            </NewsProvider>
-          </NotificationProvider>
+          <UserManagementProvider>
+            <NotificationProvider>
+              <NewsProvider>
+                <MainLayout />
+              </NewsProvider>
+            </NotificationProvider>
+          </UserManagementProvider>
         </MaintenanceProvider>
       </AuthProvider>
     </ThemeProvider>

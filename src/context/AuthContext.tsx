@@ -7,7 +7,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
+import { doc, setDoc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { auth, googleProvider, db } from '../lib/firebase';
 import { UserProfile, TechCategory, UserRole } from '../types';
 
 interface AuthContextType {
@@ -15,16 +16,16 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  loginWithEmail: (email: string, displayName?: string) => Promise<{ success: boolean; message: string }>;
   loginWithGoogle: () => Promise<void>;
-  login: (email: string, name?: string, role?: UserRole) => void;
+  sendGmailOtp: (email: string) => Promise<{ success: boolean; message: string }>;
+  verifyGmailOtp: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
-  updateProfile: (updated: Partial<UserProfile>) => void;
-  toggleBookmark: (newsId: string) => void;
+  updateProfile: (updated: Partial<UserProfile>) => Promise<void>;
+  toggleBookmark: (newsId: string) => Promise<void>;
   isBookmarked: (newsId: string) => boolean;
-  toggleSound: () => void;
-  toggleNotifications: () => void;
-  loginAsGuest: () => void;
-  loginAsGustavo: () => void;
+  toggleSound: () => Promise<void>;
+  toggleNotifications: () => Promise<void>;
   authError: string | null;
   isAuthLoading: boolean;
   clearAuthError: () => void;
@@ -46,159 +47,263 @@ export const isAdminEmail = (email?: string | null): boolean => {
   return clean === ADMIN_EMAIL.toLowerCase() || clean.includes('sougustavo000@gmail.com');
 };
 
-const DEFAULT_GUSTAVO_USER: UserProfile = {
+export const getDeterministicUserId = (email: string): string => {
+  const clean = email.toLowerCase().trim();
+  if (isFounderEmail(clean)) return 'usr-gustavo-peixoto';
+  return `usr_${clean.replace(/[^a-z0-9]/g, '_')}`;
+};
+
+export const DEFAULT_GUSTAVO_USER: UserProfile = {
   id: 'usr-gustavo-peixoto',
   name: 'Gustavo Peixoto',
   username: 'gustavopeixoto',
   email: ADMIN_EMAIL,
   avatar: GUSTAVO_PHOTO,
   role: 'Administrador',
-  bio: 'Administrador do Gustavo Tec. Apaixonado por IA de ponta, computação quântica e tecnologias emergentes.',
+  bio: 'Fundador & Administrador Geral do Gustavo Tec. Especialista em IA, Infraestrutura Cloud e Cibersegurança.',
   location: 'Portugal & Brasil 🇵🇹🇧🇷',
   techStack: ['TypeScript', 'React 19', 'Next.js', 'Python', 'PyTorch', 'Rust', 'WebAssembly', 'TailwindCSS'],
-  badges: ['🛡️ Administrador', '⚡ Tech Pioneer', '🤖 AI Explorer', '✅ Verificado'],
+  badges: ['👑 Fundador', '🛡️ Administrador', '⚡ Tech Pioneer', '🤖 AI Explorer', '✅ Verificado'],
   favoriteCategories: ['Inteligência Artificial', 'Hardware & Chips', 'Dev & Open Source', 'Cibersegurança'],
-  joinedAt: 'Administrador Ativo',
+  joinedAt: 'Fundação Ativa',
   accentColor: '#06b6d4',
   notificationsEnabled: true,
   soundEnabled: true,
-  bookmarkedNewsIds: ['news-1', 'news-4'],
+  bookmarkedNewsIds: ['news-1', 'news-2', 'news-3'],
   commentsCount: 0,
   likesCount: 0
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'gustavo_peixoto_user_session_v7';
+const LOCAL_STORAGE_EMAIL_KEY = 'gustavo_tec_active_email_v1';
+const LOCAL_STORAGE_SESSION_KEY = 'gustavo_peixoto_user_session_v9';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
+  // Initialize profile with cached session if available
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const saved = localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.email && isAdminEmail(parsed.email)) {
-          return {
-            ...DEFAULT_GUSTAVO_USER,
-            ...parsed,
-            role: 'Administrador'
-          };
+        if (parsed && typeof parsed === 'object' && parsed.email) {
+          return parsed;
         }
-        return parsed;
       }
-      return DEFAULT_GUSTAVO_USER;
+      return null;
     } catch {
-      return DEFAULT_GUSTAVO_USER;
+      return null;
     }
   });
 
-  // Sync Firebase Auth state
+  // Keep local storage session in sync
   useEffect(() => {
-    // Check redirect login fallback
+    try {
+      if (user) {
+        localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(user));
+        localStorage.setItem(LOCAL_STORAGE_EMAIL_KEY, user.email);
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_SESSION_KEY);
+        localStorage.removeItem(LOCAL_STORAGE_EMAIL_KEY);
+      }
+    } catch (e) {
+      console.warn('Local storage sync warning:', e);
+    }
+  }, [user]);
+
+  // Real-time Firestore sync bound to the user's email-based document ID
+  useEffect(() => {
+    const savedEmail = user?.email || localStorage.getItem(LOCAL_STORAGE_EMAIL_KEY);
+    if (!savedEmail) return;
+
+    const docId = getDeterministicUserId(savedEmail);
+    const userDocRef = doc(db, 'users', docId);
+
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const firestoreData = docSnap.data() as Partial<UserProfile>;
+        setUser((prev) => {
+          if (!prev) {
+            return {
+              id: docId,
+              name: firestoreData.name || savedEmail.split('@')[0],
+              username: firestoreData.username || savedEmail.split('@')[0].replace(/[^a-z0-9]/g, '_'),
+              email: savedEmail,
+              avatar: firestoreData.avatar || (isFounderEmail(savedEmail) ? GUSTAVO_PHOTO : `https://api.dicebear.com/7.x/bottts/svg?seed=${savedEmail}`),
+              role: (isFounderEmail(savedEmail) ? 'Administrador' : firestoreData.role || 'Entusiasta de Tecnologia') as UserRole,
+              bio: firestoreData.bio || (isFounderEmail(savedEmail) ? 'Fundador & Administrador Chefe do Gustavo Tec.' : 'Membro da Comunidade Gustavo Tec.'),
+              location: firestoreData.location || (isFounderEmail(savedEmail) ? 'Portugal & Brasil 🇵🇹🇧🇷' : 'Comunidade Global'),
+              techStack: Array.isArray(firestoreData.techStack) ? firestoreData.techStack : ['Inteligência Artificial', 'Tech', 'React'],
+              badges: Array.isArray(firestoreData.badges) ? firestoreData.badges : (isFounderEmail(savedEmail) ? DEFAULT_GUSTAVO_USER.badges : ['✉️ E-mail Verificado', '🚀 Membro']),
+              favoriteCategories: Array.isArray(firestoreData.favoriteCategories) ? firestoreData.favoriteCategories : ['Todas', 'Inteligência Artificial', 'Dev & Open Source'],
+              joinedAt: firestoreData.joinedAt || new Date().toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' }),
+              accentColor: firestoreData.accentColor || '#06b6d4',
+              notificationsEnabled: firestoreData.notificationsEnabled ?? true,
+              soundEnabled: firestoreData.soundEnabled ?? true,
+              bookmarkedNewsIds: Array.isArray(firestoreData.bookmarkedNewsIds) ? firestoreData.bookmarkedNewsIds : ['news-1'],
+              commentsCount: firestoreData.commentsCount || 0,
+              likesCount: firestoreData.likesCount || 0
+            };
+          }
+
+          // Merge any remote updates from Firestore (e.g. bookmarks or admin role promotion)
+          return {
+            ...prev,
+            ...firestoreData,
+            role: (isFounderEmail(savedEmail) ? 'Administrador' : firestoreData.role || prev.role) as UserRole,
+            badges: Array.isArray(firestoreData.badges) ? firestoreData.badges : prev.badges,
+            bookmarkedNewsIds: Array.isArray(firestoreData.bookmarkedNewsIds) ? firestoreData.bookmarkedNewsIds : prev.bookmarkedNewsIds
+          };
+        });
+      }
+    }, (err) => {
+      console.warn('Firestore snapshot error for user doc:', err);
+    });
+
+    return () => unsubscribe();
+  }, [user?.email]);
+
+  // Sync Firebase Google Auth State
+  useEffect(() => {
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
-          console.log('Autenticado com sucesso via redirecionamento Google:', result.user.email);
+          console.log('Autenticado via Google Redirect:', result.user.email);
         }
       })
       .catch((err) => {
         console.warn('Redirect login result warning:', err);
       });
 
-    const unsubscribe = onAuthStateChanged(auth, (currentFbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentFbUser) => {
       setFirebaseUser(currentFbUser);
-      if (currentFbUser) {
-        const isGustavo = isFounderEmail(currentFbUser.email);
-        const googleName = currentFbUser.displayName || (isGustavo ? 'Gustavo Peixoto' : currentFbUser.email?.split('@')[0] || 'Usuário Google');
-        const googleHandle = currentFbUser.email ? currentFbUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '_') : 'google_user';
-        
-        const googleProfile: UserProfile = {
-          id: currentFbUser.uid,
-          name: googleName,
-          username: isGustavo ? 'gustavopeixoto' : googleHandle,
-          email: currentFbUser.email || (isGustavo ? FOUNDER_EMAIL : 'google_user@gmail.com'),
-          avatar: isGustavo 
-            ? (currentFbUser.photoURL || GUSTAVO_PHOTO) 
-            : (currentFbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${googleHandle}`),
-          role: isGustavo ? 'Administrador' : 'Dev Full-Stack',
-          bio: isGustavo 
-            ? 'Apaixonado por IA de ponta e tecnologia em tempo real no Gustavo Tec.'
-            : 'Conectado via Conta Google no portal Gustavo Tec.',
-          location: isGustavo ? 'Portugal & Brasil 🇵🇹🇧🇷' : 'Google Verified User',
-          techStack: isGustavo 
-            ? ['TypeScript', 'React 19', 'Next.js', 'Python', 'PyTorch', 'Rust', 'WebAssembly', 'TailwindCSS']
-            : ['Inteligência Artificial', 'TypeScript', 'React', 'Cloud Services'],
-          badges: isGustavo 
-            ? ['⚡ Tech Pioneer', '🤖 AI Explorer', '🛡️ Security Pro', '✅ Verificado']
-            : ['✅ Google Verificado', '⚡ Tech Pioneer', '🤖 AI Explorer'],
-          favoriteCategories: ['Todas', 'Inteligência Artificial', 'Dev & Open Source'],
-          joinedAt: new Date().toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' }),
-          accentColor: '#06b6d4',
-          notificationsEnabled: true,
-          soundEnabled: true,
-          bookmarkedNewsIds: ['news-1'],
-          commentsCount: 0,
-          likesCount: 0
-        };
-
-        setUser(googleProfile);
+      if (currentFbUser?.email) {
+        await loginWithEmail(currentFbUser.email, currentFbUser.displayName || undefined);
       }
-      setIsAuthLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Save profile to local storage whenever it changes
-  useEffect(() => {
+  /**
+   * Primary Login Method: Directly by Email Address
+   * Binds profile state and persistence to Firestore keyed strictly by email!
+   */
+  const loginWithEmail = async (email: string, displayName?: string): Promise<{ success: boolean; message: string }> => {
+    setAuthError(null);
+    setIsAuthLoading(true);
+
     try {
-      if (user) {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(user));
-      } else {
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+        const err = 'Por favor, insira um endereço de e-mail válido (ex: seu.nome@gmail.com).';
+        setAuthError(err);
+        return { success: false, message: err };
       }
-    } catch (e) {
-      console.warn('Failed to save user in storage:', e);
+
+      const isGustavo = isFounderEmail(cleanEmail);
+      const docId = getDeterministicUserId(cleanEmail);
+      const emailPrefix = cleanEmail.split('@')[0];
+      const cleanHandle = emailPrefix.replace(/[^a-z0-9]/g, '_');
+      const resolvedName = displayName || (isGustavo ? 'Gustavo Peixoto' : emailPrefix);
+
+      let assignedRole: UserRole = isGustavo ? 'Administrador' : 'Entusiasta de Tecnologia';
+      let customBadges = isGustavo 
+        ? ['👑 Fundador', '🛡️ Administrador', '⚡ Tech Pioneer', '🤖 AI Explorer', '✅ Verificado']
+        : ['✉️ E-mail Verificado', '🚀 Membro'];
+      let existingBookmarks: string[] = ['news-1'];
+      let existingBio = isGustavo 
+        ? 'Fundador & Administrador Geral do Gustavo Tec. Especialista em IA, Infraestrutura Cloud e Cibersegurança.'
+        : `Membro verificado da comunidade Gustavo Tec (${cleanEmail}).`;
+      let existingTechStack = isGustavo 
+        ? ['TypeScript', 'React 19', 'Next.js', 'Python', 'PyTorch', 'Rust', 'WebAssembly', 'TailwindCSS']
+        : ['Inteligência Artificial', 'Dev & Open Source', 'Tecnologia'];
+      let existingJoined = new Date().toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' });
+
+      // Fetch or sync with Firestore by Email Document ID
+      try {
+        const userDocRef = doc(db, 'users', docId);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+          const remoteData = userSnap.data();
+          if (remoteData.role) assignedRole = isGustavo ? 'Administrador' : (remoteData.role as UserRole);
+          if (Array.isArray(remoteData.badges)) customBadges = remoteData.badges;
+          if (Array.isArray(remoteData.bookmarkedNewsIds)) existingBookmarks = remoteData.bookmarkedNewsIds;
+          if (remoteData.bio) existingBio = remoteData.bio;
+          if (Array.isArray(remoteData.techStack)) existingTechStack = remoteData.techStack;
+          if (remoteData.joinedAt) existingJoined = remoteData.joinedAt;
+        }
+      } catch (firestoreErr) {
+        console.warn('Firestore user fetch notice:', firestoreErr);
+      }
+
+      const profile: UserProfile = {
+        id: docId,
+        name: isGustavo ? 'Gustavo Peixoto' : (resolvedName || emailPrefix),
+        username: isGustavo ? 'gustavopeixoto' : cleanHandle,
+        email: cleanEmail,
+        avatar: isGustavo ? GUSTAVO_PHOTO : `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanHandle}`,
+        role: assignedRole,
+        bio: existingBio,
+        location: isGustavo ? 'Portugal & Brasil 🇵🇹🇧🇷' : 'Comunidade Global',
+        techStack: existingTechStack,
+        badges: customBadges,
+        favoriteCategories: ['Todas', 'Inteligência Artificial', 'Dev & Open Source'],
+        joinedAt: existingJoined,
+        accentColor: '#06b6d4',
+        notificationsEnabled: true,
+        soundEnabled: true,
+        bookmarkedNewsIds: existingBookmarks,
+        commentsCount: 0,
+        likesCount: 0
+      };
+
+      setUser(profile);
+      localStorage.setItem(LOCAL_STORAGE_EMAIL_KEY, cleanEmail);
+      localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(profile));
+
+      // Persist / update profile in Firestore
+      try {
+        await setDoc(doc(db, 'users', docId), {
+          ...profile,
+          lastLoginAt: Date.now(),
+          authMethod: 'email_account'
+        }, { merge: true });
+      } catch (saveErr) {
+        console.warn('Firestore profile persist notice:', saveErr);
+      }
+
+      return {
+        success: true,
+        message: isGustavo 
+          ? '👑 Bem-vindo, Fundador & Administrador Gustavo Peixoto! Sessão administrativa ativada com sucesso.' 
+          : `✅ Sessão iniciada com sucesso para ${cleanEmail}! Perfil e favoritos sincronizados via nuvem.`
+      };
+    } catch (err: any) {
+      const msg = err.message || 'Erro ao efetuar login por e-mail.';
+      setAuthError(msg);
+      return { success: false, message: msg };
+    } finally {
+      setIsAuthLoading(false);
     }
-  }, [user]);
+  };
 
   const loginWithGoogle = async () => {
     setAuthError(null);
     setIsAuthLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const res = await signInWithPopup(auth, googleProvider);
+      if (res.user?.email) {
+        await loginWithEmail(res.user.email, res.user.displayName || undefined);
+      }
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        // Fallback direto sem bloqueios
-        const fallbackProfile: UserProfile = {
-          id: 'google-usr-' + Date.now(),
-          name: 'Gustavo Peixoto',
-          username: 'gustavopeixoto',
-          email: FOUNDER_EMAIL,
-          avatar: GUSTAVO_PHOTO,
-          role: 'Administrador',
-          bio: 'Apaixonado por inovação, IA de ponta e desenvolvimento moderno.',
-          location: 'Portugal & Brasil 🇵🇹🇧🇷',
-          techStack: ['TypeScript', 'React 19', 'Next.js', 'Python', 'TailwindCSS'],
-          badges: ['⚡ Tech Pioneer', '🤖 AI Explorer', '🛡️ Security Pro', '✅ Verificado'],
-          favoriteCategories: ['Todas', 'Inteligência Artificial'],
-          joinedAt: new Date().toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' }),
-          accentColor: '#06b6d4',
-          notificationsEnabled: true,
-          soundEnabled: true,
-          bookmarkedNewsIds: ['news-1'],
-          commentsCount: 0,
-          likesCount: 0
-        };
-        setUser(fallbackProfile);
-        setAuthError(null);
-        return;
-      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
         try {
           await signInWithRedirect(auth, googleProvider);
           return;
@@ -215,69 +320,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = (email: string, name?: string, role?: UserRole) => {
-    const formattedUsername = (name || email.split('@')[0])
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '_');
-
-    const isGustavo = isFounderEmail(email);
-    const safeRole: UserRole = role || (isGustavo ? 'Administrador' : 'Entusiasta de Tecnologia');
-
-    const newUser: UserProfile = {
-      id: `usr-${Date.now()}`,
-      name: name || (isGustavo ? 'Gustavo Peixoto' : 'Usuário Tech'),
-      username: formattedUsername,
-      email,
-      avatar: isGustavo ? GUSTAVO_PHOTO : `https://api.dicebear.com/7.x/bottts/svg?seed=${formattedUsername}`,
-      role: safeRole,
-      bio: isGustavo ? 'Explorando inovações tecnológicas no Gustavo Tec.' : 'Explorando as últimas inovações tecnológicas no Gustavo Tec.',
-      location: isGustavo ? 'Portugal & Brasil 🇵🇹🇧🇷' : 'Brasil 🇧🇷',
-      techStack: isGustavo ? ['TypeScript', 'React 19', 'Next.js', 'Python', 'TailwindCSS'] : ['JavaScript', 'React', 'IA'],
-      badges: isGustavo ? ['⚡ Tech Pioneer', '🤖 AI Explorer', '🛡️ Security Pro', '✅ Verificado'] : ['🚀 Membro', '⚡ 10s Reader'],
-      favoriteCategories: ['Inteligência Artificial', 'Hardware & Chips'],
-      joinedAt: 'Membro Ativo',
-      accentColor: '#06b6d4',
-      notificationsEnabled: true,
-      soundEnabled: true,
-      bookmarkedNewsIds: [],
-      commentsCount: 0,
-      likesCount: 0
-    };
-    setUser(newUser);
+  const sendGmailOtp = async (email: string): Promise<{ success: boolean; message: string }> => {
     setAuthError(null);
+    setIsAuthLoading(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail.endsWith('@gmail.com')) {
+        const errorMsg = 'Por favor, insira um e-mail do Gmail válido (@gmail.com).';
+        setAuthError(errorMsg);
+        return { success: false, message: errorMsg };
+      }
+
+      const res = await fetch('/api/auth/send-gmail-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        const msg = data.message || 'Erro ao processar código de verificação.';
+        setAuthError(msg);
+        return { success: false, message: msg };
+      }
+
+      return {
+        success: true,
+        message: data.message
+      };
+    } catch (err: any) {
+      const msg = err.message || 'Erro de conexão ao enviar código pelo Bot Gustavo Tec.';
+      setAuthError(msg);
+      return { success: false, message: msg };
+    } finally {
+      setIsAuthLoading(false);
+    }
   };
 
-  const loginAsGustavo = () => {
-    setUser({
-      ...DEFAULT_GUSTAVO_USER,
-      id: firebaseUser?.uid || 'usr-gustavo-peixoto',
-      email: firebaseUser?.email || FOUNDER_EMAIL,
-      avatar: firebaseUser?.photoURL || GUSTAVO_PHOTO
-    });
+  const verifyGmailOtp = async (email: string, code: string): Promise<{ success: boolean; message: string }> => {
     setAuthError(null);
-  };
+    setIsAuthLoading(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanCode = code.trim();
 
-  const loginAsGuest = () => {
-    const guestId = Date.now().toString().slice(-4);
-    setUser({
-      id: `guest-${Date.now()}`,
-      name: `Visitante Tech #${guestId}`,
-      username: `visitante_${guestId}`,
-      email: `visitante${guestId}@gustavotec.com`,
-      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=guest${guestId}`,
-      role: 'Entusiasta de Tecnologia',
-      bio: 'Acompanhando novidades tech a cada 10s no Gustavo Tec.',
-      techStack: ['Tech', 'IA'],
-      badges: ['👀 Convidado'],
-      favoriteCategories: ['Todas'],
-      joinedAt: 'Sessão Convidado',
-      accentColor: '#06b6d4',
-      notificationsEnabled: true,
-      soundEnabled: true,
-      bookmarkedNewsIds: [],
-      commentsCount: 0,
-      likesCount: 0
-    });
+      const res = await fetch('/api/auth/verify-gmail-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, code: cleanCode })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        const msg = data.message || 'Código de verificação incorreto ou expirado.';
+        setAuthError(msg);
+        return { success: false, message: msg };
+      }
+
+      // Log in with email to load/persist profile
+      return await loginWithEmail(cleanEmail);
+    } catch (err: any) {
+      const msg = err.message || 'Erro ao validar código com o servidor.';
+      setAuthError(msg);
+      return { success: false, message: msg };
+    } finally {
+      setIsAuthLoading(false);
+    }
   };
 
   const logout = async () => {
@@ -287,45 +395,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setUser(null);
       setFirebaseUser(null);
+      localStorage.removeItem(LOCAL_STORAGE_SESSION_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_EMAIL_KEY);
     } catch (err: any) {
       console.error('Sign Out Error:', err);
       setUser(null);
+      setFirebaseUser(null);
+      localStorage.removeItem(LOCAL_STORAGE_SESSION_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_EMAIL_KEY);
     }
   };
 
-  const updateProfile = (updated: Partial<UserProfile>) => {
-    setUser(prev => (prev ? { ...prev, ...updated } : null));
-  };
-
-  const toggleBookmark = (newsId: string) => {
+  const updateProfile = async (updated: Partial<UserProfile>) => {
     setUser(prev => {
       if (!prev) return null;
-      const isBookmarked = prev.bookmarkedNewsIds.includes(newsId);
-      const newBookmarks = isBookmarked
-        ? prev.bookmarkedNewsIds.filter(id => id !== newsId)
-        : [...prev.bookmarkedNewsIds, newsId];
-      return { ...prev, bookmarkedNewsIds: newBookmarks };
+      const merged = { ...prev, ...updated };
+      return merged;
     });
+
+    if (user?.id) {
+      try {
+        await setDoc(doc(db, 'users', user.id), {
+          ...updated,
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (err) {
+        console.warn('Firestore profile update error:', err);
+      }
+    }
+  };
+
+  const toggleBookmark = async (newsId: string) => {
+    if (!user) return;
+    const isBookmarked = user.bookmarkedNewsIds.includes(newsId);
+    const newBookmarks = isBookmarked
+      ? user.bookmarkedNewsIds.filter(id => id !== newsId)
+      : [...user.bookmarkedNewsIds, newsId];
+
+    setUser(prev => prev ? { ...prev, bookmarkedNewsIds: newBookmarks } : null);
+
+    try {
+      await updateDoc(doc(db, 'users', user.id), {
+        bookmarkedNewsIds: newBookmarks,
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      console.warn('Firestore bookmark sync error:', err);
+    }
   };
 
   const isBookmarked = (newsId: string) => {
     return user ? user.bookmarkedNewsIds.includes(newsId) : false;
   };
 
-  const toggleSound = () => {
-    setUser(prev => (prev ? { ...prev, soundEnabled: !prev.soundEnabled } : null));
+  const toggleSound = async () => {
+    if (!user) return;
+    const newVal = !user.soundEnabled;
+    setUser(prev => (prev ? { ...prev, soundEnabled: newVal } : null));
+    try {
+      await updateDoc(doc(db, 'users', user.id), { soundEnabled: newVal });
+    } catch (e) {
+      console.warn('Sound preference sync error:', e);
+    }
   };
 
-  const toggleNotifications = () => {
-    setUser(prev => (prev ? { ...prev, notificationsEnabled: !prev.notificationsEnabled } : null));
+  const toggleNotifications = async () => {
+    if (!user) return;
+    const newVal = !user.notificationsEnabled;
+    setUser(prev => (prev ? { ...prev, notificationsEnabled: newVal } : null));
+    try {
+      await updateDoc(doc(db, 'users', user.id), { notificationsEnabled: newVal });
+    } catch (e) {
+      console.warn('Notification preference sync error:', e);
+    }
   };
 
   const clearAuthError = () => setAuthError(null);
 
   const isAdmin = Boolean(
     (firebaseUser?.email && isAdminEmail(firebaseUser.email)) ||
-    (user?.email && isAdminEmail(user.email)) ||
-    user?.role === 'Administrador'
+    (user?.email && isAdminEmail(user.email) && user?.role === 'Administrador')
   );
 
   return (
@@ -335,16 +484,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         firebaseUser,
         isAuthenticated: !!user,
         isAdmin,
+        loginWithEmail,
         loginWithGoogle,
-        login,
+        sendGmailOtp,
+        verifyGmailOtp,
         logout,
         updateProfile,
         toggleBookmark,
         isBookmarked,
         toggleSound,
         toggleNotifications,
-        loginAsGuest,
-        loginAsGustavo,
         authError,
         isAuthLoading,
         clearAuthError

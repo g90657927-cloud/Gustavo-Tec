@@ -14,7 +14,9 @@ import {
   Bell,
   Trophy,
   ShieldCheck,
-  Wrench
+  Wrench,
+  Users,
+  UserCheck
 } from 'lucide-react';
 import { DeviceViewMode } from '../types';
 import { DeviceModeSwitcher } from './DeviceModeSwitcher';
@@ -26,9 +28,9 @@ interface NavbarProps {
   onOpenAuth: () => void;
   onOpenProfile: () => void;
   onOpenMaintenance?: () => void;
+  onOpenUserManager?: () => void;
   onOpenSponsorAd?: () => void;
   onOpenNotifications?: () => void;
-  onOpenRecaptcha?: () => void;
   viewMode: DeviceViewMode;
   setViewMode: (mode: DeviceViewMode) => void;
 }
@@ -39,9 +41,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
   onOpenProfile,
   onOpenMaintenance,
+  onOpenUserManager,
   onOpenSponsorAd,
   onOpenNotifications,
-  onOpenRecaptcha,
   viewMode,
   setViewMode
 }) => {
@@ -159,6 +161,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <DeviceModeSwitcher viewMode={viewMode} setViewMode={setViewMode} />
             </div>
 
+            {/* User Management & Role Control Button (Visible ONLY to Admin) */}
+            {isAdmin && onOpenUserManager && (
+              <button
+                onClick={onOpenUserManager}
+                title="Central de Gestão de Usuários & Atribuição de Cargos"
+                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 backdrop-blur-md text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_12px_rgba(6,182,212,0.2)]"
+              >
+                <Users className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden lg:inline font-bold">Usuários (Admin)</span>
+              </button>
+            )}
+
             {/* Maintenance Control / Admin Button (Visible ONLY to Admin sougustavo000@gmail.com) */}
             {isAdmin && (
               <button
@@ -174,18 +188,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden sm:inline font-bold">
                   {isMaintenanceActive ? 'Manutenção Ativa' : 'Manutenção (Admin)'}
                 </span>
-              </button>
-            )}
-
-            {/* reCAPTCHA Security Center Test Button */}
-            {onOpenRecaptcha && (
-              <button
-                onClick={onOpenRecaptcha}
-                title="Verificação Google reCAPTCHA / Proteção Anti-Bot"
-                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-900/70 hover:bg-slate-800 backdrop-blur-md border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 hover:border-cyan-400 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono shadow-[0_0_12px_rgba(6,182,212,0.15)]"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="hidden md:inline font-bold">reCAPTCHA</span>
               </button>
             )}
 

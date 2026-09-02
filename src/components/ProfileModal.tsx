@@ -67,13 +67,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
 
   const bookmarkedArticles = news.filter(n => user.bookmarkedNewsIds.includes(n.id));
 
-  const handleToggleMaintenance = () => {
+  const handleToggleMaintenance = async () => {
     const cred = user.email || firebaseUser?.email || 'sougustavo000@gmail.com';
     if (isMaintenanceActive) {
-      const res = deactivateMaintenance(cred);
+      const res = await deactivateMaintenance(cred);
       setMaintenanceFeedback(res.message);
     } else {
-      const res = activateMaintenance(cred, customReason, 30);
+      const res = await activateMaintenance(cred, customReason, 30);
       setMaintenanceFeedback(res.message);
     }
     setTimeout(() => setMaintenanceFeedback(null), 4000);

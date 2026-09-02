@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { doc, onSnapshot, setDoc, collection, addDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useAuth, isAdminEmail, ADMIN_EMAIL } from './AuthContext';
 
 export interface MaintenanceState {
@@ -29,19 +31,18 @@ interface MaintenanceContextType {
   activatedAt: number | null;
   isFounderBypassing: boolean;
   isAdmin: boolean;
-  isFounder: boolean; // Alias for backward compatibility
+  isFounder: boolean;
   maintenanceLogs: MaintenanceLog[];
-  activateMaintenance: (credential?: string, reason?: string, duration?: number) => { success: boolean; message: string };
-  deactivateMaintenance: (credential?: string) => { success: boolean; message: string };
+  activateMaintenance: (credential?: string, reason?: string, duration?: number) => Promise<{ success: boolean; message: string }>;
+  deactivateMaintenance: (credential?: string) => Promise<{ success: boolean; message: string }>;
   toggleFounderBypass: () => void;
   verifyFounderKey: (credential: string) => boolean;
   clearMaintenanceLogs: () => void;
   addMaintenanceLog: (log: Omit<MaintenanceLog, 'id' | 'timestamp'>) => void;
 }
 
-const STORAGE_KEY = 'gustavotec_maintenance_state_v2';
-const BYPASS_STORAGE_KEY = 'gustavotec_admin_bypass_v2';
-const LOGS_STORAGE_KEY = 'gustavotec_maintenance_logs_v2';
+const STORAGE_KEY = 'gustavotec_maintenance_state_v3';
+const BYPASS_STORAGE_KEY = 'gustavotec_admin_bypass_v3';
 
 // Master Keys for Gustavo (Admin)
 const ADMIN_MASTER_KEYS = [
@@ -60,21 +61,6 @@ const DEFAULT_STATE: MaintenanceState = {
   activatedBy: 'Gustavo Peixoto (Administrador)'
 };
 
-const INITIAL_LOGS: MaintenanceLog[] = [
-  {
-    id: 'log-init-1',
-    action: 'config_update',
-    actionLabel: 'Sistema Inicializado',
-    timestamp: Date.now() - 3600000 * 2,
-    reason: 'Configuração de Segurança e Modo de Manutenção',
-    estimatedMinutes: 0,
-    executedBy: 'Gustavo Peixoto (Administrador)',
-    executorEmail: ADMIN_EMAIL,
-    executorRole: 'Administrador',
-    details: 'Políticas de proteção e auditoria de manutenção vinculadas a sougustavo000@gmail.com com sucesso.'
-  }
-];
-
 const MaintenanceContext = createContext<MaintenanceContextType | undefined>(undefined);
 
 export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -83,8 +69,7 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Validate Admin permission directly via Firebase Auth email, user profile email, or role
   const isAdmin = Boolean(
     (firebaseUser?.email && isAdminEmail(firebaseUser.email)) ||
-    (user?.email && isAdminEmail(user.email)) ||
-    user?.role === 'Administrador'
+    (user?.email && isAdminEmail(user.email) && user?.role === 'Administrador')
   );
 
   const [state, setState] = useState<MaintenanceState>(() => {
@@ -107,20 +92,67 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   });
 
-  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>(() => {
+  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
+
+  // 1. Listen in real-time to global Firestore maintenance state
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem(LOGS_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+      const unsub = onSnapshot(doc(db, 'system_config', 'maintenance'), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const newState: MaintenanceState = {
+            isActive: Boolean(data.isActive),
+            reason: data.reason || 'Atualização programada de sistema',
+            activatedAt: data.activatedAt || null,
+            estimatedMinutes: data.estimatedMinutes || 30,
+            activatedBy: data.activatedBy || 'Gustavo Peixoto (Administrador)'
+          };
+          setState(newState);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+          } catch {}
         }
-      }
-    } catch {
-      // Ignore storage errors
+      }, (err) => {
+        console.warn('Firestore maintenance sync info:', err.message);
+      });
+
+      return () => unsub();
+    } catch (e) {
+      console.warn('Failed to subscribe to maintenance state:', e);
     }
-    return INITIAL_LOGS;
-  });
+  }, []);
+
+  // 2. Fetch logs from Firestore
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const q = query(collection(db, 'role_logs'), limit(30));
+        const snap = await getDocs(q);
+        const logs: MaintenanceLog[] = [];
+        snap.forEach(d => {
+          const data = d.data();
+          logs.push({
+            id: d.id,
+            action: data.action || 'config_update',
+            actionLabel: data.actionLabel || data.action || 'Evento do Sistema',
+            timestamp: data.timestamp || Date.now(),
+            reason: data.reason,
+            estimatedMinutes: data.estimatedMinutes,
+            executedBy: data.executedBy || 'Administrador',
+            executorEmail: data.executorEmail || ADMIN_EMAIL,
+            executorRole: data.executorRole || 'Administrador',
+            details: data.details || 'Ação registrada no sistema.'
+          });
+        });
+        if (logs.length > 0) {
+          setMaintenanceLogs(logs.sort((a, b) => b.timestamp - a.timestamp));
+        }
+      } catch (err) {
+        console.warn('Could not fetch role_logs:', err);
+      }
+    };
+    fetchLogs();
+  }, []);
 
   // Verify whether credential is valid admin key or admin session
   const verifyFounderKey = useCallback((credential?: string): boolean => {
@@ -128,48 +160,46 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!credential) return false;
     const clean = credential.trim().toLowerCase();
     if (!clean) return false;
-    if (clean === ADMIN_EMAIL.toLowerCase() || clean.includes('sougustavo000@gmail.com')) return true;
+    if (clean === ADMIN_EMAIL.toLowerCase() || clean.includes('sougustavo000@gmail.com')) {
+      // Must match admin
+      return true;
+    }
     if (firebaseUser?.email && isAdminEmail(firebaseUser.email)) return true;
     if (user?.email && isAdminEmail(user.email)) return true;
     return ADMIN_MASTER_KEYS.some(k => k.toLowerCase() === clean);
   }, [isAdmin, user, firebaseUser]);
 
-  // Persist state changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      // Storage error
-    }
-  }, [state]);
-
-  // Persist logs changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(maintenanceLogs));
-    } catch {
-      // Storage error
-    }
-  }, [maintenanceLogs]);
-
-  const addMaintenanceLog = useCallback((newLog: Omit<MaintenanceLog, 'id' | 'timestamp'>) => {
+  const addMaintenanceLog = useCallback(async (newLog: Omit<MaintenanceLog, 'id' | 'timestamp'>) => {
     const entry: MaintenanceLog = {
       ...newLog,
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       timestamp: Date.now()
     };
-    setMaintenanceLogs(prev => [entry, ...prev.slice(0, 49)]); // Keep last 50 logs
+    setMaintenanceLogs(prev => [entry, ...prev.slice(0, 49)]);
+
+    try {
+      await addDoc(collection(db, 'role_logs'), {
+        action: entry.action,
+        actionLabel: entry.actionLabel,
+        timestamp: entry.timestamp,
+        reason: entry.reason || '',
+        estimatedMinutes: entry.estimatedMinutes || 0,
+        executedBy: entry.executedBy,
+        executorEmail: entry.executorEmail,
+        executorRole: entry.executorRole,
+        details: entry.details
+      });
+    } catch (e) {
+      console.warn('Firestore log write warning:', e);
+    }
   }, []);
 
   const clearMaintenanceLogs = useCallback(() => {
     if (!isAdmin) return;
     setMaintenanceLogs([]);
-    try {
-      localStorage.removeItem(LOGS_STORAGE_KEY);
-    } catch {}
   }, [isAdmin]);
 
-  const activateMaintenance = useCallback((
+  const activateMaintenance = useCallback(async (
     credential: string = '',
     reason: string = 'Atualização de Infraestrutura e Otimização de Performance',
     duration: number = 30
@@ -195,26 +225,36 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     setState(newState);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+    } catch {}
+
+    // Persist globally in Firestore for ALL users
+    try {
+      await setDoc(doc(db, 'system_config', 'maintenance'), newState, { merge: true });
+    } catch (err) {
+      console.warn('Firestore maintenance sync write warning:', err);
+    }
 
     // Record in Maintenance Logs
     addMaintenanceLog({
       action: 'activate',
-      actionLabel: 'Modo de Manutenção Ativado',
+      actionLabel: 'Modo de Manutenção Ativado Globalmente',
       reason: finalReason,
       estimatedMinutes: Math.max(5, duration),
       executedBy: executorName,
       executorEmail,
       executorRole: 'Administrador',
-      details: `Serviço bloqueado para visitantes. Motivo: "${finalReason}". Previsão de retorno: ${Math.max(5, duration)} minutos.`
+      details: `Serviço bloqueado para todos os visitantes. Motivo: "${finalReason}". Previsão de retorno: ${Math.max(5, duration)} minutos.`
     });
 
     return {
       success: true,
-      message: 'Modo de Manutenção ATIVADO com sucesso. O portal agora exibe a tela de manutenção e logs registrados.'
+      message: 'Modo de Manutenção ATIVADO GLOBALMENTE com sucesso. Todos os usuários agora veem a tela de manutenção.'
     };
   }, [isAdmin, verifyFounderKey, user, firebaseUser, addMaintenanceLog]);
 
-  const deactivateMaintenance = useCallback((credential: string = '') => {
+  const deactivateMaintenance = useCallback(async (credential: string = '') => {
     const isValid = isAdmin || verifyFounderKey(credential);
     if (!isValid) {
       return {
@@ -226,34 +266,44 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const executorName = user?.name || firebaseUser?.displayName || 'Gustavo Peixoto (Administrador)';
     const executorEmail = user?.email || firebaseUser?.email || ADMIN_EMAIL;
 
-    setState({
+    const newState: MaintenanceState = {
       isActive: false,
       reason: 'Operação Normal',
       activatedAt: null,
       estimatedMinutes: 0,
       activatedBy: ''
-    });
+    };
 
+    setState(newState);
     setIsFounderBypassing(false);
+
     try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
       localStorage.removeItem(BYPASS_STORAGE_KEY);
     } catch {}
+
+    // Persist globally in Firestore
+    try {
+      await setDoc(doc(db, 'system_config', 'maintenance'), newState, { merge: true });
+    } catch (err) {
+      console.warn('Firestore maintenance sync write warning:', err);
+    }
 
     // Record in Maintenance Logs
     addMaintenanceLog({
       action: 'deactivate',
-      actionLabel: 'Modo de Manutenção Desativado',
+      actionLabel: 'Modo de Manutenção Desativado Globalmente',
       reason: 'Restauração de Operação Normal',
       estimatedMinutes: 0,
       executedBy: executorName,
       executorEmail,
       executorRole: 'Administrador',
-      details: 'Acesso restabelecido para todos os utilizadores e tráfego liberado.'
+      details: 'O portal Gustavo Tec foi restaurado para acesso normal a todos os utilizadores.'
     });
 
     return {
       success: true,
-      message: 'Modo de Manutenção DESATIVADO. O portal Gustavo Tec foi restaurado para todos os utilizadores!'
+      message: 'Modo de Manutenção DESATIVADO globalmente. O portal está acessível a todos!'
     };
   }, [isAdmin, verifyFounderKey, user, firebaseUser, addMaintenanceLog]);
 
@@ -262,23 +312,15 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsFounderBypassing(prev => {
       const next = !prev;
       try {
-        localStorage.setItem(BYPASS_STORAGE_KEY, String(next));
+        if (next) {
+          localStorage.setItem(BYPASS_STORAGE_KEY, 'true');
+        } else {
+          localStorage.removeItem(BYPASS_STORAGE_KEY);
+        }
       } catch {}
-
-      addMaintenanceLog({
-        action: next ? 'bypass_on' : 'bypass_off',
-        actionLabel: next ? 'Bypass de Administrador Ligado' : 'Bypass de Administrador Desligado',
-        executedBy: user?.name || firebaseUser?.displayName || 'Gustavo Peixoto (Administrador)',
-        executorEmail: user?.email || firebaseUser?.email || ADMIN_EMAIL,
-        executorRole: 'Administrador',
-        details: next 
-          ? 'Administrador visualizando o portal normalmente enquanto o público vê a tela de manutenção.'
-          : 'Bypass finalizado.'
-      });
-
       return next;
     });
-  }, [isAdmin, user, firebaseUser, addMaintenanceLog]);
+  }, [isAdmin]);
 
   return (
     <MaintenanceContext.Provider
@@ -289,7 +331,7 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         activatedAt: state.activatedAt,
         isFounderBypassing,
         isAdmin,
-        isFounder: isAdmin, // Alias for backward compatibility
+        isFounder: isAdmin,
         maintenanceLogs,
         activateMaintenance,
         deactivateMaintenance,
@@ -304,10 +346,10 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 };
 
-export const useMaintenance = (): MaintenanceContextType => {
+export const useMaintenance = () => {
   const context = useContext(MaintenanceContext);
   if (!context) {
-    throw new Error('useMaintenance deve ser utilizado dentro de um MaintenanceProvider');
+    throw new Error('useMaintenance must be used within a MaintenanceProvider');
   }
   return context;
 };

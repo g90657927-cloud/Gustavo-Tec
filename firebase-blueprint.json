@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "users": {
+      "title": "UserProfile",
+      "description": "User profile with roles, permissions, bio, badges and bookmarks",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "bio": { "type": "string" },
+        "location": { "type": "string" },
+        "avatar": { "type": "string" },
+        "badges": { "type": "array", "items": { "type": "string" } },
+        "techStack": { "type": "array", "items": { "type": "string" } },
+        "favoriteCategories": { "type": "array", "items": { "type": "string" } },
+        "bookmarkedNewsIds": { "type": "array", "items": { "type": "string" } },
+        "joinedAt": { "type": "string" },
+        "accentColor": { "type": "string" },
+        "notificationsEnabled": { "type": "boolean" },
+        "soundEnabled": { "type": "boolean" },
+        "lastLoginAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "reading_preferences": {
+      "title": "ReadingPreferences",
+      "description": "User reading mode, 3D depth, opacity and display settings",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "isDarkReadingMode": { "type": "boolean" },
+        "opacityLevel": { "type": "number" },
+        "isHighContrast": { "type": "boolean" },
+        "isWarmTint": { "type": "boolean" },
+        "spatial3DMode": { "type": "string" },
+        "favoriteCategories": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId"]
+    },
+    "online_messages": {
+      "title": "OnlineChatMessage",
+      "description": "Real-time chat messages sent by community members in Gustavo Tec",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "userRole": { "type": "string" },
+        "userBadge": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "operatorTag": { "type": "string" },
+        "likes": { "type": "number" },
+        "likedBy": { "type": "array", "items": { "type": "string" } },
+        "channel": { "type": "string" }
+      },
+      "required": ["userId", "userName", "message"]
+    },
+    "ai_chat_history": {
+      "title": "AiChatHistory",
+      "description": "ChatBot IA conversation history and question-response pairs per user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "role": { "type": "string" },
+        "content": { "type": "string" },
+        "presetRole": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["userId", "role", "content", "timestamp"]
+    },
+    "role_logs": {
+      "title": "RoleChangeLog",
+      "description": "Audit logs of role assignments executed by admin",
+      "type": "object",
+      "properties": {
+        "targetUserId": { "type": "string" },
+        "targetUserEmail": { "type": "string" },
+        "previousRole": { "type": "string" },
+        "newRole": { "type": "string" },
+        "changedByEmail": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["targetUserId", "newRole", "changedByEmail", "timestamp"]
+    },
+    "system_config": {
+      "title": "SystemConfig",
+      "description": "Global server state and maintenance mode",
+      "type": "object",
+      "properties": {
+        "isActive": { "type": "boolean" },
+        "reason": { "type": "string" },
+        "activatedAt": { "type": "number" },
+        "estimatedMinutes": { "type": "number" },
+        "activatedBy": { "type": "string" }
+      },
+      "required": ["isActive"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile with roles and bookmarks"
+    },
+    "/reading_preferences/{userId}": {
+      "schema": "reading_preferences",
+      "description": "User specific visual and reading preferences"
+    },
+    "/online_messages/{messageId}": {
+      "schema": "online_messages",
+      "description": "Real-time community chat messages"
+    },
+    "/ai_chat_history/{chatId}": {
+      "schema": "ai_chat_history",
+      "description": "User ChatBot IA interactions and history"
+    },
+    "/role_logs/{logId}": {
+      "schema": "role_logs",
+      "description": "Admin role audit logs"
+    },
+    "/system_config/{configId}": {
+      "schema": "system_config",
+      "description": "Global maintenance status"
+    }
+  }
+}

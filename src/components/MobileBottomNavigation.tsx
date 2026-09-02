@@ -8,7 +8,8 @@ import {
   Bell,
   User as UserIcon,
   Trophy,
-  Wrench
+  Wrench,
+  Users
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +21,7 @@ interface MobileBottomNavigationProps {
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
   onOpenMaintenance?: () => void;
+  onOpenUserManager?: () => void;
 }
 
 export const MobileBottomNavigation: React.FC<MobileBottomNavigationProps> = ({
@@ -27,7 +29,8 @@ export const MobileBottomNavigation: React.FC<MobileBottomNavigationProps> = ({
   setCurrentTab,
   onOpenNotifications,
   onOpenProfile,
-  onOpenMaintenance
+  onOpenMaintenance,
+  onOpenUserManager
 }) => {
   const { unreadCount } = useNotifications();
   const { user, isAuthenticated } = useAuth();
@@ -130,7 +133,18 @@ export const MobileBottomNavigation: React.FC<MobileBottomNavigationProps> = ({
         )}
       </button>
 
-      {/* 8. Maintenance / Admin Quick Access */}
+      {/* 8. User Management (Admin) */}
+      {isAdmin && onOpenUserManager && (
+        <button
+          onClick={onOpenUserManager}
+          className="flex flex-col items-center justify-center py-1 px-1.5 rounded-xl text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer"
+        >
+          <Users className="w-4 h-4 mb-0.5" />
+          <span className="text-[9px] font-mono leading-none font-bold">Users</span>
+        </button>
+      )}
+
+      {/* 9. Maintenance / Admin Quick Access */}
       {isAdmin && (
         <button
           onClick={onOpenMaintenance || onOpenProfile}

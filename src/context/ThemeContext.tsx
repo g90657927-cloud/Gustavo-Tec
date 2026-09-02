@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { persistReadingPreferences } from '../lib/firestoreService';
 
 export interface ThemeSettings {
   isDarkReadingMode: boolean;
@@ -47,10 +50,48 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return DEFAULT_SETTINGS;
   });
 
-  // Apply settings to document element
+  // Real-time Firestore sync with reading_preferences for active user
+  useEffect(() => {
+    const activeEmail = localStorage.getItem('gustavo_tec_active_email_v1');
+    if (!activeEmail) return;
+
+    const docId = activeEmail.toLowerCase().trim() === 'sougustavo000@gmail.com'
+      ? 'usr-gustavo-peixoto'
+      : `usr_${activeEmail.toLowerCase().trim().replace(/[^a-z0-9]/g, '_')}`;
+
+    const prefDocRef = doc(db, 'reading_preferences', docId);
+
+    const unsubscribe = onSnapshot(prefDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setSettings((prev) => ({
+          ...prev,
+          isDarkReadingMode: typeof data.isDarkReadingMode === 'boolean' ? data.isDarkReadingMode : prev.isDarkReadingMode,
+          opacityLevel: typeof data.opacityLevel === 'number' ? data.opacityLevel : prev.opacityLevel,
+          isHighContrast: typeof data.isHighContrast === 'boolean' ? data.isHighContrast : prev.isHighContrast,
+          isWarmTint: typeof data.isWarmTint === 'boolean' ? data.isWarmTint : prev.isWarmTint,
+          spatial3DMode: data.spatial3DMode || prev.spatial3DMode
+        }));
+      }
+    }, (err) => {
+      console.warn('Reading preferences snapshot notice:', err);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Apply settings to document element and persist to local storage & Firestore
   useEffect(() => {
     try {
       localStorage.setItem('gustavotec_theme_settings', JSON.stringify(settings));
+      
+      const activeEmail = localStorage.getItem('gustavo_tec_active_email_v1');
+      if (activeEmail) {
+        const docId = activeEmail.toLowerCase().trim() === 'sougustavo000@gmail.com'
+          ? 'usr-gustavo-peixoto'
+          : `usr_${activeEmail.toLowerCase().trim().replace(/[^a-z0-9]/g, '_')}`;
+        persistReadingPreferences(docId, activeEmail, settings).catch(() => {});
+      }
     } catch (e) {
       console.warn('Erro ao salvar tema:', e);
     }

@@ -17,6 +17,12 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { sendAiChatMessage } from '../lib/clientAiChat';
+import { useAuth } from '../context/AuthContext';
+import {
+  persistAiChatMessage,
+  fetchAiChatHistory,
+  clearUserAiChatHistory
+} from '../lib/firestoreService';
 
 interface ChatMessage {
   id: string;
@@ -107,6 +113,7 @@ const QUICK_SUGGESTIONS = [
 ];
 
 export const GeminiGoogleView: React.FC = () => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -123,6 +130,37 @@ export const GeminiGoogleView: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load chat history from Firestore on component mount for logged in user
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    let isMounted = true;
+    fetchAiChatHistory(user.id, 40).then((history) => {
+      if (!isMounted || history.length === 0) return;
+      const mapped: ChatMessage[] = history.map(item => ({
+        id: item.id,
+        role: item.role,
+        content: item.content,
+        timestamp: new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      }));
+      setMessages([
+        {
+          id: 'welcome',
+          role: 'model',
+          content: 'Olá! Sou o **ChatBot IA** oficial integrado ao portal **Gustavo Tec**.\n\nSeu histórico anterior foi recuperado com segurança do Firestore.',
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        },
+        ...mapped
+      ]);
+    }).catch((err) => {
+      console.warn('Erro ao carregar histórico de chat:', err);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -149,6 +187,11 @@ export const GeminiGoogleView: React.FC = () => {
     setInput('');
     setIsLoading(true);
 
+    // Persist user prompt to Firestore
+    if (user?.id) {
+      persistAiChatMessage(user.id, user.email || '', 'user', query, roleToUse).catch(() => {});
+    }
+
     try {
       // Build conversation history (excluding welcome greeting)
       const history = messages
@@ -164,14 +207,20 @@ export const GeminiGoogleView: React.FC = () => {
         role: roleToUse
       });
 
+      const modelReplyContent = reply || 'Sem resposta retornada pelo ChatBot.';
       const modelMessage: ChatMessage = {
         id: `model-${Date.now()}`,
         role: 'model',
-        content: reply || 'Sem resposta retornada pelo ChatBot.',
+        content: modelReplyContent,
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       };
 
       setMessages(prev => [...prev, modelMessage]);
+
+      // Persist model response to Firestore
+      if (user?.id) {
+        persistAiChatMessage(user.id, user.email || '', 'model', modelReplyContent, roleToUse).catch(() => {});
+      }
     } catch (err: any) {
       console.error('Erro ao enviar mensagem:', err);
       const errorMessage: ChatMessage = {
@@ -194,11 +243,14 @@ export const GeminiGoogleView: React.FC = () => {
   };
 
   const handleClearChat = () => {
+    if (user?.id) {
+      clearUserAiChatHistory(user.id).catch(() => {});
+    }
     setMessages([
       {
         id: 'welcome',
         role: 'model',
-        content: 'Chat reiniciado. O que você gostaria de explorar ou programar agora?',
+        content: 'Chat reiniciado. Histórico limpo com sucesso.',
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       }
     ]);

@@ -39,7 +39,7 @@ export const MaintenanceScreen: React.FC = () => {
     maintenanceLogs
   } = useMaintenance();
 
-  const { user, firebaseUser, loginAsGustavo, loginWithGoogle } = useAuth();
+  const { user, firebaseUser, loginWithGoogle } = useAuth();
 
   const [adminKeyInput, setAdminKeyInput] = useState('');
   const [actionFeedback, setActionFeedback] = useState<{ success: boolean; msg: string } | null>(null);
@@ -59,23 +59,23 @@ export const MaintenanceScreen: React.FC = () => {
   const remainingMinutes = Math.max(1, (estimatedMinutes || 30) - elapsedMinutes);
   const progressPercent = Math.min(95, Math.max(15, Math.round(((estimatedMinutes - remainingMinutes) / (estimatedMinutes || 30)) * 100)));
 
-  const handleDeactivateDirect = () => {
+  const handleDeactivateDirect = async () => {
     setIsProcessing(true);
     setActionFeedback(null);
 
     const credential = user?.email || firebaseUser?.email || ADMIN_EMAIL;
-    const result = deactivateMaintenance(credential);
+    const result = await deactivateMaintenance(credential);
 
     setActionFeedback({ success: result.success, msg: result.message });
     setIsProcessing(false);
   };
 
-  const handleUnlockWithKey = (e: React.FormEvent) => {
+  const handleUnlockWithKey = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
     setActionFeedback(null);
 
-    const result = deactivateMaintenance(adminKeyInput);
+    const result = await deactivateMaintenance(adminKeyInput);
     setActionFeedback({ success: result.success, msg: result.message });
     setIsProcessing(false);
     if (result.success) {
@@ -83,12 +83,10 @@ export const MaintenanceScreen: React.FC = () => {
     }
   };
 
-  const handleQuickLoginAdmin = () => {
-    loginAsGustavo();
-    setActionFeedback({
-      success: true,
-      msg: 'Sessão de Administrador (Gustavo Peixoto) carregada! Agora pode desativar a manutenção com 1 clique.'
-    });
+  const handleGoogleAdminLogin = async () => {
+    setIsProcessing(true);
+    await loginWithGoogle();
+    setIsProcessing(false);
   };
 
   return (
@@ -312,15 +310,15 @@ export const MaintenanceScreen: React.FC = () => {
               <span>Desativar Manutenção (Restaurar Site)</span>
             </button>
           ) : (
-            /* If not logged in, provide 1-click Admin Login or Unlock Form */
+            /* If not logged in, provide Google Admin Login or Unlock Form */
             <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={handleQuickLoginAdmin}
+                onClick={handleGoogleAdminLogin}
                 className="px-4 py-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer shadow-lg"
               >
                 <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>Entrar como Gustavo (Admin)</span>
+                <span>Entrar com Conta Google (Admin)</span>
               </button>
 
               <button

@@ -5,6 +5,7 @@ import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { fetchAllRealNews, getActiveSources } from './server/rssFetcher';
 import { getSingleLocationWeather, getAllPortugalWeatherSummary } from './server/weatherService';
+import { sendAuthMagicCodeEmail } from './server/emailService';
 
 dotenv.config();
 
@@ -246,6 +247,107 @@ async function startServer() {
   // Health check API
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // In-memory OTP store for Bot Gustavo Tec Gmail Verification
+  const gmailOtpStore = new Map<string, { code: string; expiresAt: number; createdAt: number }>();
+
+  // Send Gmail Code via Bot Gustavo Tec API
+  app.post('/api/auth/send-gmail-code', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ success: false, message: 'Por favor, insira um e-mail válido.' });
+      }
+
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail.endsWith('@gmail.com')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Apenas endereços de e-mail do Gmail (@gmail.com) são aceites para este método de login.'
+        });
+      }
+
+      // Generate secure 6-digit numeric magic code
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+      gmailOtpStore.set(cleanEmail, {
+        code: otpCode,
+        expiresAt,
+        createdAt: Date.now()
+      });
+
+      const isFounder = cleanEmail === 'sougustavo000@gmail.com';
+
+      // Dispatch magic code email via modular Email Service (Nodemailer / SMTP)
+      await sendAuthMagicCodeEmail({
+        to: cleanEmail,
+        code: otpCode,
+        isFounder
+      });
+
+      res.json({
+        success: true,
+        message: `O Bot Gustavo Tec enviou a mensagem com o código de 6 dígitos para o seu e-mail (${cleanEmail}). Abra a sua caixa de entrada do Gmail para copiar o código e introduza-o abaixo.`,
+        email: cleanEmail
+      });
+    } catch (error: any) {
+      console.error('Erro ao enviar código de verificação Gmail:', error);
+      res.status(500).json({ success: false, message: 'Falha ao processar envio do código pelo Bot Gustavo Tec.' });
+    }
+  });
+
+  // Verify Gmail Code API
+  app.post('/api/auth/verify-gmail-code', (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ success: false, message: 'E-mail e código de 6 dígitos são obrigatórios.' });
+      }
+
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanCode = code.toString().trim();
+
+      const stored = gmailOtpStore.get(cleanEmail);
+
+      if (!stored) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nenhum código recente foi gerado para este Gmail. Solicite um novo código.'
+        });
+      }
+
+      if (Date.now() > stored.expiresAt) {
+        gmailOtpStore.delete(cleanEmail);
+        return res.status(400).json({
+          success: false,
+          message: 'O código de verificação expirou (validade de 10 minutos). Solicite um novo.'
+        });
+      }
+
+      if (stored.code !== cleanCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Código de 6 dígitos incorreto. Verifique a mensagem enviada pelo Bot Gustavo Tec.'
+        });
+      }
+
+      // Code is valid! Consume it
+      gmailOtpStore.delete(cleanEmail);
+
+      const isFounder = cleanEmail === 'sougustavo000@gmail.com';
+
+      res.json({
+        success: true,
+        message: 'Código validado com sucesso pelo Bot Gustavo Tec!',
+        email: cleanEmail,
+        isFounder
+      });
+    } catch (error: any) {
+      console.error('Erro ao verificar código Gmail:', error);
+      res.status(500).json({ success: false, message: 'Erro ao validar código.' });
+    }
   });
 
   // Google reCAPTCHA Configuration API (Provides public site key to frontend from env)

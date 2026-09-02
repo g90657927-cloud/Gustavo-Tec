@@ -26,131 +26,32 @@ interface UserManagementContextType {
   getUserById: (id: string) => UserProfile | undefined;
 }
 
-const INITIAL_COMMUNITY_USERS: UserProfile[] = [
-  {
-    id: 'usr-gustavo-peixoto',
-    name: 'Gustavo Peixoto',
-    username: 'gustavopeixoto',
-    email: ADMIN_EMAIL,
-    avatar: GUSTAVO_PHOTO,
-    role: 'Administrador',
-    bio: 'Fundador & Administrador Chefe do Gustavo Tec. Especialista em IA, Infraestrutura Cloud e Cibersegurança.',
-    location: 'Portugal & Brasil 🇵🇹🇧🇷',
-    techStack: ['TypeScript', 'React 19', 'Next.js', 'Python', 'PyTorch', 'Rust', 'WebAssembly'],
-    badges: ['👑 Fundador', '🛡️ Administrador', '⚡ Tech Pioneer', '🤖 AI Explorer', '✅ Verificado'],
-    favoriteCategories: ['Inteligência Artificial', 'Hardware & Chips', 'Dev & Open Source', 'Cibersegurança'],
-    joinedAt: 'Fundação Ativa',
-    accentColor: '#06b6d4',
-    notificationsEnabled: true,
-    soundEnabled: true,
-    bookmarkedNewsIds: ['news-1', 'news-2', 'news-3'],
-    commentsCount: 28,
-    likesCount: 142
-  },
-  {
-    id: 'usr-sarah-chen',
-    name: 'Sarah Chen',
-    username: 'sarah_ai_dev',
-    email: 'sarah.chen@gustavotec.ai',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    role: 'Moderador',
-    bio: 'Pesquisadora em modelos de linguagem generativa e moderadora da comunidade.',
-    location: 'Lisboa, Portugal 🇵🇹',
-    techStack: ['Python', 'PyTorch', 'HuggingFace', 'LangChain', 'TypeScript'],
-    badges: ['🎖️ Moderador', '🤖 Engenheira de IA', '⚡ Super Contribuidora'],
-    favoriteCategories: ['Inteligência Artificial', 'Dev & Open Source'],
-    joinedAt: 'Jan 2026',
-    accentColor: '#8b5cf6',
-    notificationsEnabled: true,
-    soundEnabled: true,
-    bookmarkedNewsIds: ['news-1'],
-    commentsCount: 19,
-    likesCount: 88
-  },
-  {
-    id: 'usr-marcos-silva',
-    name: 'Marcos Silva',
-    username: 'marcos_hardware',
-    email: 'marcos.silva@techmail.io',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    role: 'Editor de Notícias',
-    bio: 'Editor técnico focado na revolução dos semicondutores, arquitetura ARM e computação quântica.',
-    location: 'São Paulo, Brasil 🇧🇷',
-    techStack: ['C++', 'Rust', 'Embedded Systems', 'CUDA', 'FPGA'],
-    badges: ['✍️ Editor Oficial', '⚙️ Especialista Hardware', '⚡ 10s Reader'],
-    favoriteCategories: ['Hardware & Chips', 'Espaço & Robótica'],
-    joinedAt: 'Fev 2026',
-    accentColor: '#f59e0b',
-    notificationsEnabled: true,
-    soundEnabled: true,
-    bookmarkedNewsIds: ['news-2'],
-    commentsCount: 15,
-    likesCount: 64
-  },
-  {
-    id: 'usr-elena-rostova',
-    name: 'Elena Rostova',
-    username: 'elena_cybersec',
-    email: 'elena.rostova@defensetech.eu',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-    role: 'Membro VIP',
-    bio: 'Especialista em segurança de redes e defesa proativa contra vetores zero-day.',
-    location: 'Porto, Portugal 🇵🇹',
-    techStack: ['Go', 'Rust', 'Wireshark', 'Kubernetes', 'Linux Kernel'],
-    badges: ['💎 Membro VIP', '🛡️ Cyber Sentinel', '✅ Verificado'],
-    favoriteCategories: ['Cibersegurança', 'Cloud & Web3'],
-    joinedAt: 'Mar 2026',
-    accentColor: '#10b981',
-    notificationsEnabled: true,
-    soundEnabled: true,
-    bookmarkedNewsIds: ['news-4'],
-    commentsCount: 12,
-    likesCount: 53
-  },
-  {
-    id: 'usr-lucas-mendes',
-    name: 'Lucas Mendes',
-    username: 'lucas_frontend',
-    email: 'lucas.mendes@devhub.com',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    role: 'Dev Full-Stack',
-    bio: 'Criando interfaces rápidas e integrando webhooks para atualizações em tempo real.',
-    location: 'Rio de Janeiro, Brasil 🇧🇷',
-    techStack: ['React 19', 'Next.js', 'TailwindCSS', 'Node.js', 'PostgreSQL'],
-    badges: ['💻 Dev Full-Stack', '🚀 Membro Ativo'],
-    favoriteCategories: ['Dev & Open Source', 'Mobile & Gadgets'],
-    joinedAt: 'Abr 2026',
-    accentColor: '#3b82f6',
-    notificationsEnabled: true,
-    soundEnabled: true,
-    bookmarkedNewsIds: ['news-3'],
-    commentsCount: 8,
-    likesCount: 31
-  },
-  {
-    id: 'usr-ana-paula',
-    name: 'Ana Paula Rocha',
-    username: 'anapaula_tech',
-    email: 'ana.rocha@techreader.com',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    role: 'Entusiasta de Tecnologia',
-    bio: 'Entusiasta de novidades em smartphones, inteligência artificial e gadgets.',
-    location: 'Coimbra, Portugal 🇵🇹',
-    techStack: ['Gadgets', 'Smart Homes', 'Apple & Android'],
-    badges: ['🚀 Membro', '⚡ 10s Reader'],
-    favoriteCategories: ['Mobile & Gadgets', 'Inteligência Artificial'],
-    joinedAt: 'Mai 2026',
-    accentColor: '#ec4899',
-    notificationsEnabled: true,
-    soundEnabled: true,
-    bookmarkedNewsIds: ['news-5'],
-    commentsCount: 5,
-    likesCount: 22
-  }
-];
+// REAL SYSTEM USERS ONLY: Gustavo Peixoto as Founder & Admin
+const ROOT_FOUNDER_USER: UserProfile = {
+  id: 'usr-gustavo-peixoto',
+  name: 'Gustavo Peixoto',
+  username: 'gustavopeixoto',
+  email: ADMIN_EMAIL,
+  avatar: GUSTAVO_PHOTO,
+  role: 'Administrador',
+  bio: 'Fundador & Administrador Chefe do Gustavo Tec. Especialista em IA, Infraestrutura Cloud e Cibersegurança.',
+  location: 'Portugal & Brasil 🇵🇹🇧🇷',
+  techStack: ['TypeScript', 'React 19', 'Next.js', 'Python', 'PyTorch', 'Rust', 'WebAssembly'],
+  badges: ['👑 Fundador', '🛡️ Administrador', '⚡ Tech Pioneer', '🤖 AI Explorer', '✅ Verificado'],
+  favoriteCategories: ['Inteligência Artificial', 'Hardware & Chips', 'Dev & Open Source', 'Cibersegurança'],
+  joinedAt: 'Fundação Ativa',
+  accentColor: '#06b6d4',
+  notificationsEnabled: true,
+  soundEnabled: true,
+  bookmarkedNewsIds: ['news-1', 'news-2', 'news-3'],
+  commentsCount: 0,
+  likesCount: 0
+};
 
-const LOCAL_USERS_KEY = 'gustavo_tec_managed_users_v2';
-const LOCAL_ROLE_LOGS_KEY = 'gustavo_tec_role_audit_logs_v1';
+const FAKE_USER_IDS = ['usr-sarah-chen', 'usr-marcos-silva', 'usr-elena-rostova', 'usr-lucas-mendes', 'usr-ana-paula'];
+
+const LOCAL_USERS_KEY = 'gustavo_tec_managed_users_v4';
+const LOCAL_ROLE_LOGS_KEY = 'gustavo_tec_role_audit_logs_v2';
 
 const UserManagementContext = createContext<UserManagementContextType | undefined>(undefined);
 
@@ -163,17 +64,18 @@ export const UserManagementProvider: React.FC<{ children: React.ReactNode }> = (
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Always ensure Gustavo Peixoto is present and Admin
-          const hasGustavo = parsed.some(u => isFounderEmail(u.email));
+          // Filter out fake dummy users
+          const cleanUsers = parsed.filter(u => !FAKE_USER_IDS.includes(u.id));
+          const hasGustavo = cleanUsers.some(u => isFounderEmail(u.email));
           if (!hasGustavo) {
-            return [INITIAL_COMMUNITY_USERS[0], ...parsed];
+            return [ROOT_FOUNDER_USER, ...cleanUsers];
           }
-          return parsed;
+          return cleanUsers;
         }
       }
-      return INITIAL_COMMUNITY_USERS;
+      return [ROOT_FOUNDER_USER];
     } catch {
-      return INITIAL_COMMUNITY_USERS;
+      return [ROOT_FOUNDER_USER];
     }
   });
 
@@ -199,6 +101,9 @@ export const UserManagementProvider: React.FC<{ children: React.ReactNode }> = (
           const firestoreUsers: UserProfile[] = [];
           snapshot.forEach((docSnap) => {
             const data = docSnap.data();
+            // Skip any fake user ids
+            if (FAKE_USER_IDS.includes(docSnap.id)) return;
+
             firestoreUsers.push({
               id: docSnap.id,
               name: data.name || 'Usuário Tech',
@@ -221,15 +126,19 @@ export const UserManagementProvider: React.FC<{ children: React.ReactNode }> = (
             });
           });
 
-          // Merge Firestore users with community presets
+          // Merge Firestore users
           setUsers((prevUsers) => {
             const map = new Map<string, UserProfile>();
-            // Add community presets
-            INITIAL_COMMUNITY_USERS.forEach(u => map.set(u.id, u));
-            // Add local users
-            prevUsers.forEach(u => map.set(u.id, u));
-            // Add/Overwrite Firestore users
-            firestoreUsers.forEach(u => map.set(u.id, u));
+            // Add root founder
+            map.set(ROOT_FOUNDER_USER.id, ROOT_FOUNDER_USER);
+            // Add existing local real users
+            prevUsers.forEach(u => {
+              if (!FAKE_USER_IDS.includes(u.id)) map.set(u.id, u);
+            });
+            // Add Firestore real users
+            firestoreUsers.forEach(u => {
+              if (!FAKE_USER_IDS.includes(u.id)) map.set(u.id, u);
+            });
             
             // Ensure founder is always Admin
             const list = Array.from(map.values()).map(u => {
@@ -365,7 +274,6 @@ export const UserManagementProvider: React.FC<{ children: React.ReactNode }> = (
       if (!updatedBadges.includes('💎 Membro VIP')) updatedBadges.unshift('💎 Membro VIP');
       updatedBadges = updatedBadges.filter(b => b !== '🛡️ Administrador');
     } else if (newRole === 'Entusiasta de Tecnologia') {
-      // Demoted to standard member
       updatedBadges = updatedBadges.filter(b => !['🛡️ Administrador', '🎖️ Moderador', '✍️ Editor Oficial', '💎 Membro VIP'].includes(b));
       if (!updatedBadges.includes('🚀 Membro')) updatedBadges.push('🚀 Membro');
     }
@@ -402,7 +310,6 @@ export const UserManagementProvider: React.FC<{ children: React.ReactNode }> = (
 
     // Async sync to Firestore
     try {
-      // Update User Doc
       const userRef = doc(db, 'users', userId);
       await setDoc(userRef, {
         ...updatedUser,
@@ -410,7 +317,6 @@ export const UserManagementProvider: React.FC<{ children: React.ReactNode }> = (
         updatedBy: currentUser?.email || ADMIN_EMAIL
       }, { merge: true });
 
-      // Save Log Doc
       const logRef = doc(db, 'role_logs', newLog.id);
       await setDoc(logRef, newLog);
     } catch (e: any) {
@@ -426,7 +332,6 @@ export const UserManagementProvider: React.FC<{ children: React.ReactNode }> = (
     };
   }, [users, currentUser, updateProfile]);
 
-  // Convenience helper functions
   const promoteToAdmin = useCallback(async (userId: string, reason?: string) => {
     return updateUserRole(userId, 'Administrador', reason || 'Promoção a Administrador com privilégios plenos de gestão');
   }, [updateUserRole]);

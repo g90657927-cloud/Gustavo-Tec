@@ -44,7 +44,7 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onCl
     clearMaintenanceLogs
   } = useMaintenance();
 
-  const { user, firebaseUser, loginWithGoogle, loginAsGustavo } = useAuth();
+  const { user, firebaseUser, loginWithGoogle } = useAuth();
 
   const [activeModalTab, setActiveModalTab] = useState<'controls' | 'logs'>('controls');
   const [customReason, setCustomReason] = useState(
@@ -57,12 +57,12 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
-  const handleActivate = () => {
+  const handleActivate = async () => {
     setIsProcessing(true);
     setFeedback(null);
 
     const credential = isAdmin ? (user?.email || firebaseUser?.email || ADMIN_EMAIL) : adminKeyInput;
-    const result = activateMaintenance(credential, customReason, durationMinutes);
+    const result = await activateMaintenance(credential, customReason, durationMinutes);
 
     setFeedback({ success: result.success, msg: result.message });
     setIsProcessing(false);
@@ -71,12 +71,12 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onCl
     }
   };
 
-  const handleDeactivate = () => {
+  const handleDeactivate = async () => {
     setIsProcessing(true);
     setFeedback(null);
 
     const credential = isAdmin ? (user?.email || firebaseUser?.email || ADMIN_EMAIL) : adminKeyInput;
-    const result = deactivateMaintenance(credential);
+    const result = await deactivateMaintenance(credential);
 
     setFeedback({ success: result.success, msg: result.message });
     setIsProcessing(false);
@@ -85,12 +85,19 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onCl
     }
   };
 
-  const handleQuickLoginGustavo = () => {
-    loginAsGustavo();
-    setFeedback({
-      success: true,
-      msg: 'Sessão de Administrador (Gustavo Peixoto - sougustavo000@gmail.com) validada com sucesso!'
-    });
+  const handleGoogleAdminLogin = async () => {
+    setIsProcessing(true);
+    try {
+      await loginWithGoogle();
+      setFeedback({
+        success: true,
+        msg: 'Autenticação com o Google solicitada com sucesso!'
+      });
+    } catch {
+      setFeedback({ success: false, msg: 'Erro ao autenticar com Google.' });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleExportLogs = () => {
@@ -326,25 +333,15 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onCl
                   Para controlar o Modo de Manutenção, autentique-se com a sua conta de <strong>Administrador ({ADMIN_EMAIL})</strong>.
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="flex justify-center">
                   <button
                     type="button"
-                    onClick={handleQuickLoginGustavo}
-                    className="p-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    onClick={handleGoogleAdminLogin}
+                    disabled={isProcessing}
+                    className="w-full p-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg disabled:opacity-50"
                   >
                     <Sparkles className="w-4 h-4 text-cyan-400" />
-                    <span>Entrar como Gustavo (Admin)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await loginWithGoogle();
-                    }}
-                    className="p-3 rounded-xl bg-slate-800 hover:bg-slate-750 border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  >
-                    <LogIn className="w-4 h-4 text-amber-400" />
-                    <span>Entrar via Google</span>
+                    <span>Autenticar com Conta Google ({ADMIN_EMAIL})</span>
                   </button>
                 </div>
 

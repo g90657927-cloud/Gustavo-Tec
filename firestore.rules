@@ -27,7 +27,19 @@ service cloud.firestore {
     // User profiles & role administration
     match /users/{userId} {
       allow read: if true;
-      allow write: if isOwner(userId) || (isAuthenticated() && request.auth.token.email == "sougustavo000@gmail.com");
+      allow write: if true;
+    }
+
+    // User reading preferences (dark reading mode, opacity, 3D spatial, contrast)
+    match /reading_preferences/{userId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // AI Chat / Gemini assistant history per user
+    match /ai_chat_history/{chatId} {
+      allow read: if true;
+      allow write: if true;
     }
 
     // Role audit logs
@@ -35,6 +47,12 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && request.auth.token.email == "sougustavo000@gmail.com";
+    }
+
+    // System Global Configuration & Maintenance Mode
+    match /system_config/{configId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.token.email == "sougustavo000@gmail.com";
     }
   }
 }
